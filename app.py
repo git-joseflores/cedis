@@ -296,7 +296,7 @@ def main():
     """
     docstring
     """
-    st.set_page_config(page_title='CEDIS', page_icon='img/icon.png')
+    st.set_page_config(page_title='CEDIS', page_icon='img/icon.PNG')
     st.sidebar.title('CEDIS')
     file = st.sidebar.file_uploader('Selecciona el Archivo:', type=['xlsx'])
 
