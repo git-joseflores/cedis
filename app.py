@@ -97,7 +97,7 @@ def preparar_datos_estacionalidad(recibo, embarque, devoluciones, inventario, ca
     pivot_inv = pd.pivot_table(inv, index='Mes', aggfunc='sum').sort_index()
 
     pivot_todos = pd.concat([pivot_rec, pivot_emb, pivot_dev, pivot_inv], axis=1)
-    pivot_todos['Mes'] = pd.to_datetime(pivot_todos.index, format='%m').month_name()
+    pivot_todos['Mes'] = pd.to_datetime(pivot_todos.index, format='%m').month_name(locale='es_MX.utf8')
     
     cols = [
         cantidad + ' Recibidas',
@@ -108,9 +108,9 @@ def preparar_datos_estacionalidad(recibo, embarque, devoluciones, inventario, ca
     pivot_comas = pd.DataFrame(columns=['Mes'] + cols)
 
     for col in cols:
-        pivot_comas[col] = pivot_todos.apply(lambda column: "{:,}".format(column[col]), axis=1)
+        pivot_comas[col] = pivot_todos.apply(lambda column: "{:,}".format(int(column[col])), axis=1)
 
-    pivot_comas['Mes'] = pd.to_datetime(pivot_comas.index, format='%m').month_name()
+    pivot_comas['Mes'] = pd.to_datetime(pivot_comas.index, format='%m').month_name(locale='es_MX.utf8')
 
     return pivot_todos, pivot_comas, cantidad, datos_completos
 
@@ -148,9 +148,9 @@ def estacionalidad(datos, datos_comas, cantidad, datos_completos):
         col1, col2, col3 = st.beta_columns(3)
         with col1:
             st.subheader('Rotación de Inventario:')
-            rot = datos.loc[:, cols[1]].sum() / datos.loc[:, cols[3]].sum()
+            rot = datos.loc[:, cols[3]].sum() / datos.loc[:, cols[1]].sum()
             if pd.notnull(rot):
-                st.write(rot)
+                st.write(str(rot))
             else:
                 st.write('No hay datos.')
 
@@ -158,7 +158,7 @@ def estacionalidad(datos, datos_comas, cantidad, datos_completos):
             st.subheader('DDI Promedio:')
             ddi = rot * 31
             if pd.notnull(ddi):
-                st.write(ddi)
+                st.write(str(ddi))
             else:
                 st.write('No hay datos.')
 
@@ -166,7 +166,7 @@ def estacionalidad(datos, datos_comas, cantidad, datos_completos):
             st.subheader('% de Devoluciones:')
             dev_emb = datos.loc[:, cols[2]].sum() / datos.loc[:, cols[1]].sum() * 100
             if pd.notnull(dev_emb):
-                st.write(dev_emb)
+                st.write(str(dev_emb))
             else:
                 st.write('No hay datos.')
     else:
@@ -188,12 +188,12 @@ def preparar_datos_cargas_operativas(recibo, embarque, devoluciones, cantidad, p
     pivot_emb = pd.pivot_table(emb, index=periodo + ' Embarque', aggfunc='sum').sort_index() / dias
     pivot_dev = pd.pivot_table(dev, index=periodo + ' Devolución', aggfunc='sum').sort_index() / dias
     pivot_todos = pd.concat([pivot_rec, pivot_emb, pivot_dev], axis=1)
-    pivot_todos.index.name = 'Turno'
+    pivot_todos.index.name = periodo
+    
+    return pivot_todos, cantidad, datos_completos, periodo
 
-    return pivot_todos, cantidad, datos_completos
 
-
-def cargas_operativas(datos, cantidad, datos_completos):
+def cargas_operativas(datos, cantidad, datos_completos, periodo):
     """
     docstring
     """
@@ -201,16 +201,16 @@ def cargas_operativas(datos, cantidad, datos_completos):
         st.table(datos)
 
         datos = datos.reset_index()
-        datos['Turno'] = datos['Turno'].astype(str)
+        datos[periodo] = datos[periodo].astype(str)
         cols = [
             cantidad + ' Recibidas',
             cantidad + ' Embarcadas', 
             cantidad + ' Devueltas'
         ]
-        datos_fig = pd.melt(datos, id_vars='Turno', var_name='Tipo de Cantidad', value_name=cantidad)
+        datos_fig = pd.melt(datos, id_vars=periodo, var_name='Tipo de Cantidad', value_name=cantidad)
         fig = px.bar(
             datos_fig,
-            x='Turno',
+            x=periodo,
             y=cantidad,
             color='Tipo de Cantidad',
             barmode='group',
@@ -220,7 +220,17 @@ def cargas_operativas(datos, cantidad, datos_completos):
                 cols[2]: "#951E41"
             }
         )
-        fig.update_layout(yaxis={'title': ''})
+        if periodo == 'Horario':
+            fig.update_layout(xaxis={'type': 'category'})
+        # fig.add_layout_image(
+        #     dict(
+        #         source="img/logo.png",
+        #         xref="paper", yref="paper",
+        #         x=1.2, y=-0.15,
+        #         sizex=0.2, sizey=0.2,
+        #         xanchor="right", yanchor="bottom"
+        #     )
+        # )
         st.plotly_chart(fig)
     else:
         st.info('No hay Datos Completos.')
@@ -309,7 +319,7 @@ def main():
             'Estacionalidad',
             'Cargas Operativas',
             'Resúmenes',
-            ''
+            # 'Clasificación ABC'
         ]
         analisis = st.sidebar.selectbox(
             'Selecciona el Análisis a Ejecutar:',
@@ -433,6 +443,23 @@ def main():
                     resumen_secciones
                 )
                 
+        # elif analisis == menu_options[4]:
+        #     st.title(analisis)
+        #     abc_cantidad = st.sidebar.radio(
+        #         'Selecciona las Cantidades a Usar:',
+        #         ['Unidades', 'Cajas', 'Tarimas'],
+        #         index=0
+        #     )
+
+        #     abc_a = st.sidebar.radio(
+        #         'Selecciona las Caasntidades a Usar:',
+        #         ['Unidades', 'Cajas', 'Tarimas'],
+        #         index=0
+        #     )
+
+        #     abc_b = st.sidebar.number_input('Valor de ')
+
+
 
 
 
