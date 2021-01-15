@@ -97,7 +97,8 @@ def preparar_datos_estacionalidad(recibo, embarque, devoluciones, inventario, ca
     pivot_inv = pd.pivot_table(inv, index='Mes', aggfunc='sum').sort_index()
 
     pivot_todos = pd.concat([pivot_rec, pivot_emb, pivot_dev, pivot_inv], axis=1)
-    pivot_todos['Mes'] = pd.to_datetime(pivot_todos.index, format='%m').month_name(locale='es_MX.utf8')
+    pivot_todos['Mes'] = pd.to_datetime(pivot_todos.index, format='%m').month_name()
+    # pivot_todos['Mes'] = pd.to_datetime(pivot_todos.index, format='%m').month_name(locale='es_MX.utf8')
     
     cols = [
         cantidad + ' Recibidas',
@@ -110,7 +111,8 @@ def preparar_datos_estacionalidad(recibo, embarque, devoluciones, inventario, ca
     for col in cols:
         pivot_comas[col] = pivot_todos.apply(lambda column: "{:,}".format(int(column[col])), axis=1)
 
-    pivot_comas['Mes'] = pd.to_datetime(pivot_comas.index, format='%m').month_name(locale='es_MX.utf8')
+    pivot_comas['Mes'] = pd.to_datetime(pivot_comas.index, format='%m').month_name()
+    # pivot_comas['Mes'] = pd.to_datetime(pivot_comas.index, format='%m').month_name(locale='es_MX.utf8')
 
     return pivot_todos, pivot_comas, cantidad, datos_completos
 
@@ -142,7 +144,6 @@ def estacionalidad(datos, datos_comas, cantidad, datos_completos):
                 cols[3]: "#E4B657"
             }
         )
-        fig.update_layout(yaxis={'title': ''}, xaxis={'title': ''})
         st.plotly_chart(fig)
 
         col1, col2, col3 = st.beta_columns(3)
@@ -220,17 +221,16 @@ def cargas_operativas(datos, cantidad, datos_completos, periodo):
                 cols[2]: "#951E41"
             }
         )
-        if periodo == 'Horario':
-            fig.update_layout(xaxis={'type': 'category'})
-        # fig.add_layout_image(
-        #     dict(
-        #         source="img/logo.png",
-        #         xref="paper", yref="paper",
-        #         x=1.2, y=-0.15,
-        #         sizex=0.2, sizey=0.2,
-        #         xanchor="right", yanchor="bottom"
-        #     )
-        # )
+        fig.update_layout(xaxis={'type': 'category'})
+        fig.add_layout_image(
+            dict(
+                source="https://github.com/git-joseflores/cedis/blob/master/img/logo.png?raw=true",
+                xref="paper", yref="paper",
+                x=1.2, y=-0.15,
+                sizex=0.2, sizey=0.2,
+                xanchor="right", yanchor="bottom"
+            )
+        )
         st.plotly_chart(fig)
     else:
         st.info('No hay Datos Completos.')
@@ -277,25 +277,19 @@ def resumenes(datos, cantidad, fecha, datos_completos, num_secciones):
         
         datos = datos.reset_index()
 
-        st.subheader('Box and Whisker')
-        datos.loc[:, 'Variable'] = 'Cajas Recibidas'
-        fig = px.box(datos, x='Variable', y=cantidad, points="all")
-        fig.update_layout(yaxis={'title': ''}, xaxis={'visible': False})
+        fig = px.box(datos, y=cantidad, points="all", title='Box and Whisker')
         st.plotly_chart(fig, use_container_width=True)
 
-        st.subheader('Serie de Tiempo')
-        fig = px.line(datos, x=fecha, y=cantidad)
-        fig.update_layout(yaxis={'title': ''}, xaxis={'title': ''})
+        fig = px.line(datos, x=fecha, y=cantidad, title='Serie de Tiempo')
         st.plotly_chart(fig, use_container_width=True)
 
-        st.subheader('Histograma')
         secciones = np.linspace(datos[cantidad].min(), datos[cantidad].max(), num_secciones + 1)
         datos['Secciones'] = pd.cut(datos[cantidad], secciones, include_lowest=True)
         acumulado = datos['Secciones'].value_counts()
         acumulado = acumulado.sort_index().to_frame().reset_index()
         acumulado.rename(columns={'index': 'Secciones', 'Secciones': 'Conteo'}, inplace=True)
         acumulado["Secciones"] = acumulado["Secciones"].astype("str")
-        fig = px.bar(acumulado, x='Secciones', y="Conteo")
+        fig = px.bar(acumulado, x='Secciones', y="Conteo", title='Histograma')
         st.plotly_chart(fig, use_container_width=True)
 
     else:
@@ -395,11 +389,12 @@ def main():
                 index=0
             )
 
-            resumen_periodo = st.sidebar.radio(
-                'Selecciona el Período de Tiempo a Usar:',
-                ['Días', 'Meses', 'Años'],
-                index=0
-            )
+            resumen_periodo = ''
+            # resumen_periodo = st.sidebar.radio(
+            #     'Selecciona el Período de Tiempo a Usar:',
+            #     ['Días', 'Meses', 'Años'],
+            #     index=0
+            # )
 
             resumen_secciones = st.sidebar.number_input(
                 'Selecciona el Número de Secciones del Histograma:',
@@ -409,7 +404,8 @@ def main():
             )
             
             if resumen_tipo == 'Recibos':
-                st.title(analisis + ' de ' + resumen_cantidad + ' Recibidas por ' + resumen_periodo)
+                st.title(analisis + ' de ' + resumen_cantidad + ' Recibidas')
+                # st.title(analisis + ' de ' + resumen_cantidad + ' Recibidas por ' + resumen_periodo)
                 resumenes(
                     *preparar_datos_resumenes(
                         df_recibo,
@@ -421,7 +417,7 @@ def main():
                 )
 
             elif resumen_tipo == 'Embarques':
-                st.title(analisis + ' de ' + resumen_cantidad + ' Embarcadas por ' + resumen_periodo)
+                st.title(analisis + ' de ' + resumen_cantidad + ' Embarcadas')
                 resumenes(
                     *preparar_datos_resumenes(
                         df_embarque,
@@ -432,7 +428,7 @@ def main():
                     resumen_secciones
                 )
             else:
-                st.title(analisis + ' de ' + resumen_cantidad + ' Devueltas por ' + resumen_periodo)
+                st.title(analisis + ' de ' + resumen_cantidad + ' Devueltas')
                 resumenes(
                     *preparar_datos_resumenes(
                         df_devoluciones,
