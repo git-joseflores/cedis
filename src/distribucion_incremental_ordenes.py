@@ -10,7 +10,7 @@ def calcular_distribucion_ordenes(datos_embarques, datos_sku):
     """
     datos_ordenes = pd.merge(datos_embarques,
                              datos_sku,
-                             on='ID Producto',
+                             on='ID del Producto',
                              how='inner')
 
     datos_ordenes['Tarimas al 100%'] = datos_ordenes['Cajas Embarcadas'] // datos_ordenes['Cajas x Tarima']

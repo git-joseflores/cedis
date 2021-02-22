@@ -1,19 +1,10 @@
 import pandas as pd
-import streamlit as st
 import plotly.express as px
-
-
-def formatear_tiempo(formato, columna, es_inventario=False):
-    """
-    dosctring
-    """
-    if es_inventario:
-        columna = pd.to_datetime(columna, format=formato)
-    return columna.dt.strftime(formato)
+import streamlit as st
 
 
 @st.cache
-def calcular_estacionalidad(tabla_inventario, tabla_recibos, tabla_embarques, tabla_devoluciones):
+def calcular_estacionalidad(tabla_inventario, tabla_recibos, tabla_embarques, tabla_devoluciones, cantidad, tipo):
     """
     docstring
     """
@@ -22,23 +13,62 @@ def calcular_estacionalidad(tabla_inventario, tabla_recibos, tabla_embarques, ta
               tabla_devoluciones,
               tabla_inventario]
     
-    columnas_de_tiempo = ['Fecha Recibo',
-                          'Fecha Embarque',
-                          'Fecha Devolución',
-                          'Mes']
+    columnas_de_tiempo = ['Fecha de Recibo',
+                          'Fecha de Embarque',
+                          'Fecha de Devolución',
+                          'Fecha de Inventario']
 
-    pivot_total = pd.DataFrame(columns=['Mes'])
-    for tabla, columna_de_tiempo in zip(tablas, columnas_de_tiempo):
-        tabla[columna_de_tiempo] = formatear_tiempo('%m', tabla[columna_de_tiempo], tabla is tabla_inventario)
-        pivot_tabla = pd.pivot_table(tabla, index=columna_de_tiempo, aggfunc='sum').sort_index()
-        pivot_total = pd.concat([pivot_total, pivot_tabla], axis=1)
+    columnas_de_cantidad = [cantidad + ' Recibidas',
+                            cantidad + ' Embarcadas',
+                            cantidad + ' Devueltas',
+                            cantidad + ' de Inventario']
 
-    pivot_total['Mes'] = pd.to_datetime(pivot_total.index, format='%m').month_name(locale='es_MX.utf8')
+    if tipo == 'Por Mes':
+        resumen = ['Mes', 'Año']
+    else:
+        resumen = ['Semana', 'Año']
+
+    pivot_total = pd.DataFrame(columns=resumen)
+    pivot_total.set_index(resumen, inplace=True)
+
+    for tabla, columna_de_tiempo, columna_de_cantidad in zip(tablas, columnas_de_tiempo, columnas_de_cantidad):    
+        if tipo == 'Por Mes':
+            tabla['Mes'] = tabla[columna_de_tiempo].dt.month
+        else:
+            tabla['Semana'] = tabla[columna_de_tiempo].dt.isocalendar().week
+
+        tabla['Año'] = tabla[columna_de_tiempo].dt.year
+
+        pivot_tabla = tabla.groupby(resumen)[columna_de_cantidad].agg('sum')
+        pivot_total = pd.merge(pivot_total, pivot_tabla, how='outer', left_index=True, right_index=True)
+
+    pivot_total.fillna(0, inplace=True)
+    pivot_total.reset_index(inplace=True)
+    
+    if tipo == 'Por Mes':
+        pivot_total.sort_values(['Año', 'Mes'], ascending=[True, True], inplace=True)
+        pivot_total['Mes'].replace([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+                                ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', \
+                                    'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'], inplace=True)
+        pivot_total['Mes-Año'] = pivot_total['Mes'] + '-' + pivot_total['Año'].astype(str)
+
+        del pivot_total['Mes']
+        del pivot_total['Año']
+
+        pivot_total = pivot_total.reindex(columns=['Mes-Año'] + columnas_de_cantidad)
+    else:
+        pivot_total.sort_values(['Año', 'Semana'], ascending=[True, True], inplace=True)
+        pivot_total['Semana-Año'] = pivot_total['Semana'].astype(str) + '-' + pivot_total['Año'].astype(str)
+
+        del pivot_total['Semana']
+        del pivot_total['Año']
+
+        pivot_total = pivot_total.reindex(columns=['Semana-Año'] + columnas_de_cantidad)
     
     return pivot_total
 
 
-def mostrar_estacionalidad(datos, cantidad, columna_tiempo):
+def mostrar_estacionalidad(datos, cantidad, rango_fechas, tipo):
     """
     docstring
     """
@@ -50,50 +80,83 @@ def mostrar_estacionalidad(datos, cantidad, columna_tiempo):
     titulo = 'Estacionalidad de ' + cantidad
     st.title(titulo)
 
-    st.subheader('Periodo de Análisis:') 
-    periodo_min = columna_tiempo.min()
-    periodo_max = columna_tiempo.max()
-    st.write(f'{(periodo_max - periodo_min).days} días.')
+    st.subheader('Periodo de Análisis:')
+    total_dias = (rango_fechas[1] - rango_fechas[0]).days + 1
+    st.write(f"{total_dias} día{'s' if total_dias != 1 else ''}.")
 
-    st.table(datos.style.format('{:,.0f}', datos_cols))
+    st.table(datos.style.format('{:,.1f}', datos_cols))
 
-    datos_fig = pd.melt(datos, id_vars='Mes', var_name='Tipo de Cantidad', value_name=cantidad)
-    fig = px.bar(datos_fig,
-                 x='Mes',
-                 y=cantidad,
-                 color='Tipo de Cantidad',
-                 barmode='group',
-                 labels={'Mes': '<b>Mes<b>',
-                         cantidad: f'<b>{cantidad}<b>'},
-                 hover_data={cantidad: ':,f'})
-                 
-    fig.update_layout(title_text=f'<b>{titulo}<b>', title_x=0.5)
-                      
-    fig.add_layout_image(dict(source="https://raw.githubusercontent.com/git-joseflores/sintec/main/logo.png",
-                              xref='paper', yref='paper',
-                              x=1.38, y=0.3,
-                              sizex=0.28, sizey=0.28,
-                              xanchor='right', yanchor='bottom'))
+    if tipo == 'Por Mes':
+        datos_fig = pd.melt(datos, id_vars='Mes-Año', var_name='Tipo de ' + cantidad, value_name=cantidad)
+        fig = px.bar(datos_fig,
+                     x='Mes-Año',
+                     y=cantidad,
+                     color='Tipo de ' + cantidad,
+                     barmode='group',
+                     labels={'Mes-Año': '<b>Mes-Año</b>',
+                             cantidad: f'<b>{cantidad}</b>'})
 
-    fig.add_annotation(text=f'Fuente: El gráfico se construye con información de Inventarios, Recibos, Embarques <br>' +
-                            f'y Devoluciones del periodo {periodo_min.day}-{periodo_min.month}-{periodo_min.year} al ' +
-                            f'{periodo_max.day}-{periodo_max.month}-{periodo_max.year}.',
+        fig.update_traces(hovertemplate='Mes-Año: %{x}<br>'+ cantidad +': %{y:,.1f}')
+
+    else:
+        datos_fig = pd.melt(datos, id_vars='Semana-Año', var_name='Tipo de ' + cantidad, value_name=cantidad)
+        fig = px.bar(datos_fig,
+                     x='Semana-Año',
+                     y=cantidad,
+                     color='Tipo de ' + cantidad,
+                     barmode='group',
+                     labels={'Semana-Año': '<b>Semana-Año</b>',
+                             cantidad: f'<b>{cantidad}</b>'})
+
+        fig.update_traces(hovertemplate='Semana-Año: %{x}<br>'+ cantidad +': %{y:,.1f}')
+
+    fig.update_layout(title_text=f'<b>{titulo}</b>', 
+                      title_x=0.5,
+                      width=950,
+                      height=600,
+                      margin=dict(l=50,
+                                  r=50,
+                                  b=150,
+                                  t=35,
+                                  pad=5))
+
+        
+    # fig.add_layout_image(dict(source="https://raw.githubusercontent.com/git-joseflores/sintec/main/logo.png",
+    #                         xref='paper', yref='paper',
+    #                         x=1.15, y=-0.25,
+    #                         sizex=0.17, sizey=0.17,
+    #                         xanchor='right', yanchor='bottom'))
+
+    meses = {1: 'Enero',
+             2: 'Febrero',
+             3: 'Marzo',
+             4: 'Abril',
+             5: 'Mayo',
+             6: 'Junio',
+             7: 'Julio',
+             8: 'Agosto',
+             9: 'Septiembre',
+             10: 'Octubre',
+             11: 'Noviembre',
+             12: 'Diciembre'} 
+
+    fig.add_annotation(text=f'Fuente: El gráfico se construye con información de Recibos, Embarques y Devoluciones<br>' +
+                            f'del periodo que comprende del {rango_fechas[0].day} de {meses[rango_fechas[0].month]} de {rango_fechas[0].year} al ' +
+                            f'{rango_fechas[1].day} de {meses[rango_fechas[1].month]} de {rango_fechas[1].year}.',
                        xref='paper', yref='paper',
-                       x=0.5, y=-0.25,
+                       x=0.5, y=-0.35,
                        showarrow=False,
                        font={'size': 11})
                   
     st.plotly_chart(fig)
 
     st.subheader('Rotación de Inventario:')
-    rot = datos[datos_cols[1]].sum() / datos[datos_cols[3]].sum()
-    st.write(f'{rot:.3f}')
+    rotacion = datos[cantidad + ' Embarcadas'].sum() / datos[cantidad + ' de Inventario'].sum()
+    st.write(f'{rotacion:.2f}')
     
     st.subheader('DDI Promedio:')
-    ddi = rot * 31
-    st.write(f'{ddi:.3f}')
+    st.write(f'{rotacion * 31:.2f}')
     
     st.subheader('% de Devoluciones:')
-    dev_emb = datos[datos_cols[2]].sum() / datos[datos_cols[1]].sum() * 100
-    st.write(f'{dev_emb:.3f}%')
+    st.write(f'{datos[cantidad + " Devueltas"].sum() / datos[cantidad + " Embarcadas"].sum():.2%}')
     

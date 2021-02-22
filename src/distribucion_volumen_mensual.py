@@ -9,26 +9,26 @@ def calcular_distribucion_volumen(datos_embarques, datos_sku):
     """
     docstring
     """
-    datos_embarques['Mes'] = datos_embarques['Fecha Embarque'].dt.month
+    datos_embarques['Mes'] = datos_embarques['Fecha de Embarque'].dt.month
     
-    datos_distribucion = datos_embarques.groupby(['ID Producto', 'Mes'], as_index=False)['Unidades Embarcadas'].agg({'Embarque Total':'sum'})
+    datos_distribucion = datos_embarques.groupby(['ID del Producto', 'Mes'], as_index=False)['Unidades Embarcadas'].agg({'Embarque Total':'sum'})
     
     datos_distribucion = pd.merge(datos_distribucion,
                                   datos_sku,
-                                  on='ID Producto',
+                                  on='ID del Producto',
                                   how='outer')
 
     datos_distribucion['Volumen x Mes'] = datos_distribucion['Embarque Total'] * datos_distribucion['Volumen x Unidad']
     del datos_distribucion['Embarque Total']
     del datos_distribucion['Volumen x Unidad']
 
-    datos_distribucion = datos_distribucion.pivot(index='ID Producto', columns='Mes')['Volumen x Mes']
+    datos_distribucion = datos_distribucion.pivot(index='ID del Producto', columns='Mes')['Volumen x Mes']
     datos_distribucion.columns.name = None
     
     datos_distribucion['Volumen Promedio'] = datos_distribucion.mean(axis=1)
     datos_distribucion.reset_index(inplace=True)
     
-    return datos_distribucion[['ID Producto', 'Volumen Promedio']]
+    return datos_distribucion[['ID del Producto', 'Volumen Promedio']]
 
 
 def mostrar_distribucion_volumen(datos, numero_de_secciones, columna_tiempo):
@@ -68,11 +68,11 @@ def mostrar_distribucion_volumen(datos, numero_de_secciones, columna_tiempo):
     fig.update_yaxes(tickformat=".0%")
     fig.update_traces(hovertemplate='Metros Cúbicos Mensuales: %{x} <br>% de Productos: %{y:.0%}')
 
-    fig.add_layout_image(dict(source="https://raw.githubusercontent.com/git-joseflores/sintec/main/logo.png",
-                            xref='paper', yref='paper',
-                            x=1, y=-0.25,
-                            sizex=0.17, sizey=0.17,
-                            xanchor='right', yanchor='bottom'))
+    # fig.add_layout_image(dict(source="https://raw.githubusercontent.com/git-joseflores/sintec/main/logo.png",
+    #                         xref='paper', yref='paper',
+    #                         x=1, y=-0.25,
+    #                         sizex=0.17, sizey=0.17,
+    #                         xanchor='right', yanchor='bottom'))
 
     fig.add_annotation(text=f'Fuente: El gráfico se construye con información de SKU y Embarques<br>' +
                             f'del periodo {tiempo_min.day}-{tiempo_min.month}-{tiempo_min.year} al ' +

@@ -3,7 +3,6 @@ import numpy as np
 import streamlit as st
 import plotly.express as px
 import plotly.figure_factory as ff
-import plotly.graph_objects as go
 
 
 @st.cache
@@ -11,7 +10,7 @@ def calcular_clasificacion_abc(datos, cantidad, peso_volumen, peso_frecuencia, p
     """
     docstring
     """
-    datos_abc_parcial = datos.groupby('ID Producto', as_index=False)[cantidad + ' Embarcadas'].agg({
+    datos_abc_parcial = datos.groupby('ID del Producto', as_index=False)[cantidad + ' Embarcadas'].agg({
                               'volumen':'sum',
                               'frecuencia': 'count',
                               'promedio': 'mean',
@@ -129,13 +128,11 @@ def mostrar_comparacion_absoluta(datos_cliente, datos_sintec, columna_tiempo):
 
     datos_juntos = pd.merge(datos_cliente,
                             datos_sintec,
-                            left_on='Clave',
-                            right_on='ID Producto',
+                            on='ID del Producto',
                             how='outer')
-    del datos_juntos['Clave']
 
     tabla_confusion = pd.crosstab(datos_juntos['Clasificación ABC Sintec'],
-                                  datos_juntos['Clasificación ABC Cliente'],
+                                  datos_juntos['Clasificación ABC del Cliente'],
                                   rownames=['Sintec'],
                                   colnames=['Cliente'],
                                   margins=True)
@@ -203,13 +200,11 @@ def mostrar_comparacion_porcentual(datos_cliente, datos_sintec, columna_tiempo):
 
     datos_juntos = pd.merge(datos_cliente,
                             datos_sintec,
-                            left_on='Clave',
-                            right_on='ID Producto',
+                            on='ID del Producto',
                             how='outer')
-    del datos_juntos['Clave']
 
     tabla_confusion = pd.crosstab(datos_juntos['Clasificación ABC Sintec'],
-                                  datos_juntos['Clasificación ABC Cliente'],
+                                  datos_juntos['Clasificación ABC del Cliente'],
                                   rownames=['Sintec'],
                                   colnames=['Cliente'],
                                   margins=True)
@@ -274,23 +269,23 @@ def calcular_abc_comparativo(datos_inventario, datos_embarques, df, cantidad, co
     tiempo_min = columna_tiempo.min()
     tiempo_max = columna_tiempo.max()
 
-    datos_comparativo_inventario = datos_inventario.groupby('ID Producto', as_index=False)[cantidad + ' de Inventario'].agg({'Suma Inventario':'sum'})
-    datos_comparativo_embarque = datos_embarques.groupby('ID Producto', as_index=False)[cantidad + ' Embarcadas'].agg({'Suma Embarque':'sum'})
+    datos_comparativo_inventario = datos_inventario.groupby('ID del Producto', as_index=False)[cantidad + ' de Inventario'].agg({'Suma Inventario':'sum'})
+    datos_comparativo_embarque = datos_embarques.groupby('ID del Producto', as_index=False)[cantidad + ' Embarcadas'].agg({'Suma Embarque':'sum'})
 
 
     datos_comparativo_inventario = pd.merge(datos_comparativo_inventario,
                                            df,
-                                           on='ID Producto',
+                                           on='ID del Producto',
                                            how='outer').fillna('C')
 
-    datos_comparativo_inventario.columns = ['ID Producto', 'Suma Inventario', 'ABC']
+    datos_comparativo_inventario.columns = ['ID del Producto', 'Suma Inventario', 'ABC']
    
    
     datos_comparativo_embarque = pd.merge(datos_comparativo_embarque,
                                            df,
-                                           on='ID Producto',
+                                           on='ID del Producto',
                                            how='outer').fillna('C')
-    datos_comparativo_embarque.columns = ['ID Producto', 'Suma Embarque', 'ABC']
+    datos_comparativo_embarque.columns = ['ID del Producto', 'Suma Embarque', 'ABC']
    
 
     datos_comparativo_inventario = datos_comparativo_inventario.groupby('ABC', as_index=False)['Suma Inventario'].agg({' Inventario': 'sum'})
