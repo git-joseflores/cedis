@@ -3,8 +3,9 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+
 @st.cache
-def calcular_resumenes(datos, minimo, maximo, tiempo, cantidad, fechas):
+def calcular_pivote_resumenes(datos, tiempo, cantidad, fechas):
     """
     docstring
     """
@@ -13,28 +14,45 @@ def calcular_resumenes(datos, minimo, maximo, tiempo, cantidad, fechas):
     pivot_datos.index = pd.DatetimeIndex(pivot_datos.index)
     pivot_datos = pivot_datos.reindex(fechas_indice, fill_value=0)
 
-    resumen_general = {'Mínimo': [pivot_datos.min()],
-                       'Máximo': [pivot_datos.max()],
-                       'Promedio': [pivot_datos.mean()],
-                       'Desviación Estándar': [pivot_datos.std()],
-                       'Coeficiente de Variación': [pivot_datos.std() / pivot_datos.mean()]}
+    return pivot_datos
 
-    tabla_general = pd.DataFrame.from_dict(resumen_general).fillna(0)
 
+@st.cache
+def calcular_estadisticas(datos):
+
+    dict_resumen = {'Mínimo': [datos.min()],
+                       'Máximo': [datos.max()],
+                       'Promedio': [datos.mean()],
+                       'Desviación Estándar': [datos.std()],
+                       'Coeficiente de Variación': [datos.std() / datos.mean()]}
+
+    tabla_resumen = pd.DataFrame.from_dict(dict_resumen).fillna(0)
+
+    return tabla_resumen
+
+
+@st.cache
+def calcular_resumen_generales(datos, tiempo, cantidad, fechas):
+    """
+    docstring
+    """
+    pivot_datos = calcular_pivote_resumenes(datos, tiempo, cantidad, fechas)
+
+    return calcular_estadisticas(pivot_datos)
+
+
+@st.cache
+def calcular_resumenes_acotados(datos, minimo, maximo, tiempo, cantidad, fechas):
+    """
+    docstring
+    """
+    pivot_datos = calcular_pivote_resumenes(datos, tiempo, cantidad, fechas)
     pivot_datos = pivot_datos[(pivot_datos >= minimo) & (pivot_datos <= maximo)]
-    
-    resumen_acotado = {'Mínimo': [pivot_datos.min()],
-                       'Máximo': [pivot_datos.max()],
-                       'Promedio': [pivot_datos.mean()],
-                       'Desviación Estándar': [pivot_datos.std()],
-                       'Coeficiente de Variación': [pivot_datos.std() / pivot_datos.mean()]}
 
-    tabla_acotada = pd.DataFrame.from_dict(resumen_acotado).fillna(0)
-
-    return pivot_datos, tabla_general, tabla_acotada
+    return pivot_datos, calcular_estadisticas(pivot_datos)
 
 
-def mostrar_resumenes(datos, resumen_general, resumen_acotada, tipo, tiempo, cantidad, rango_fechas, numero_secciones):
+def mostrar_resumenes(datos, resumen_acotada, resumen_general, tipo, tiempo, cantidad, rango_fechas, numero_secciones):
     """
     docstring
     """

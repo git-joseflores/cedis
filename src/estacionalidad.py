@@ -140,7 +140,7 @@ def mostrar_estacionalidad(datos, cantidad, rango_fechas, tipo):
              11: 'Noviembre',
              12: 'Diciembre'} 
 
-    fig.add_annotation(text=f'Fuente: El gráfico se construye con información de Recibos, Embarques y Devoluciones<br>' +
+    fig.add_annotation(text=f'Fuente: El gráfico se construye con información de Inventarios, Recibos, Embarques y Devoluciones<br>' +
                             f'del periodo que comprende del {rango_fechas[0].day} de {meses[rango_fechas[0].month]} de {rango_fechas[0].year} al ' +
                             f'{rango_fechas[1].day} de {meses[rango_fechas[1].month]} de {rango_fechas[1].year}.',
                        xref='paper', yref='paper',

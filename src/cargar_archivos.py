@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 
 # Nombre de todas las tablas/hojas del archivo Excel.
-nombres_tablas = ['Información SKU',
+nombres_tablas = ['Información de SKU',
                   'Foto de Inventarios',
                   'Base de Recibo',
                   'Base de Embarque',

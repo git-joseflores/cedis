@@ -10,7 +10,9 @@ errores = {1: 'Error 001: No se encontró una hoja de cálculo llamada "*" en el
            3: 'Error 003: Se encontraron datos vacíos en la siguiente columna de "*": "*".',
            4: 'Error 004: Se encontraron datos desconocidos en la siguiente columna de "*": "*".',
            5: 'Error 005: Las secciones de horario seleccionadas se superponen entre sí.',
-           6: 'Error 006: Selecciona un rango de fechas válido.'}
+           6: 'Error 006: Selecciona un rango de fechas válido.',
+           7: 'Error 007: Selecciona una combinación de pesos porcentuales para la clasificación ABC ponderada igual a 100%.',
+           8: 'Error 008: Existen valores de "ID del Producto" en "Foto de Inventarios" que no se encuentran en "Información de SKU"'}
 
 # st.write(abc_volumen_conteo.astype('object'))
 
@@ -82,7 +84,7 @@ def checar_integridad_fecha(datos_fecha):
 
 
 @st.cache
-def checar_integridad_fechas(fecha_inventario, fecha_recibo, fecha_embarque, fecha_devolucion):
+def checar_integridad_fechas(fecha_inventario=[], fecha_recibo=[], fecha_embarque=[], fecha_devolucion=[]):
     """
     DOCSTRING
     """
@@ -93,25 +95,28 @@ def checar_integridad_fechas(fecha_inventario, fecha_recibo, fecha_embarque, fec
     
     lista_errores = []
     for datos_fecha in datos_fechas:
-        lista_errores.extend(checar_integridad_fecha(datos_fecha))
+        if isinstance(datos_fecha[0], pd.Series):
+            lista_errores.extend(checar_integridad_fecha(datos_fecha))
     return lista_errores
 
 
 @st.cache
-def obtener_fecha_minmax(fecha_inventario, fecha_recibo, fecha_embarque, fecha_devolucion, minmax):
+def obtener_fecha_minmax(fecha_inventario=[], fecha_recibo=[], fecha_embarque=[], fecha_devolucion=[], obten_min=False):
     """
     DOCSTRING
     """
-    if minmax:
-        return min(fecha_inventario.min(),
-                   fecha_recibo.min(),
-                   fecha_embarque.min(),
-                   fecha_devolucion.min())
+    fechas_obtenidas = []
+    for fecha_en_turno in (fecha_inventario, fecha_recibo, fecha_embarque, fecha_devolucion):
+        if isinstance(fecha_en_turno, pd.Series):
+            if obten_min:
+                fechas_obtenidas.append(fecha_en_turno.min())
+            else:
+                fechas_obtenidas.append(fecha_en_turno.max())
+
+    if obten_min:
+        return min(fechas_obtenidas)
     else:
-        return max(fecha_inventario.max(),
-                   fecha_recibo.max(),
-                   fecha_embarque.max(),
-                   fecha_devolucion.max())
+        return max(fechas_obtenidas)
 
 
 def boton_de_descarga(url_descarga, nombre_de_descarga, texto_boton):

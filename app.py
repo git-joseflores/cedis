@@ -12,15 +12,693 @@ from src.estacionalidad import calcular_estacionalidad, mostrar_estacionalidad
 # Análisis 3: Cargas Operativas
 from src.cargas_operativas import calcular_cargas, mostrar_cargas
 # Análisis 4: Resúmenes
-from src.resumenes_por_dia import calcular_resumenes, mostrar_resumenes
-# Análisis 5: Clasificación ABC Ponderado
-from src.clasificacion_abc import calcular_clasificacion_abc, mostrar_clasificacion_abc, mostrar_comparacion_absoluta, mostrar_comparacion_porcentual, calcular_abc_comparativo
-# Análisis 6: Distribución de Volumen Mensual
-from src.distribucion_volumen_mensual import calcular_distribucion_volumen, mostrar_distribucion_volumen
-# Análisis 7: Distribución Incremental de Ordenes
+from src.resumenes_por_dia import calcular_resumen_generales, calcular_resumenes_acotados, mostrar_resumenes
+# Análisis 5: Clasificación ABC Ponderada
+from src.clasificacion_abc_ponderada import calcular_clasificacion_abc, mostrar_clasificacion_abc, descargar_clasificacion_abc
+# Análisis 6: Comparación ABC Sintec vs ABC Cliente
+from src.comparacion_abc_cliente import mostrar_comparacion_cliente_absoluta, mostrar_comparacion_cliente_porcentual
+# Análisis 7: Comparación ABC Sintec vs Inventario
+from src.comparacion_abc_inventario import mostrar_comparacion_inventario
+# Análisis 8: Distribución de Volumen Mensual
+from src.distribucion_volumen_mensual import calcular_distribucion_volumen, mostrar_distribucion_volumen, descargar_distribucion_volumen
+# Análisis 9: Distribución Incremental de Ordenes
 from src.distribucion_incremental_ordenes import calcular_distribucion_ordenes, mostrar_distribucion_ordenes
-# Análisis 8: Distribución Completa/Parcial/Mixta
+# Análisis 10: Distribución Completa/Parcial/Mixta
 from src.distribucion_comparacion import calcular_distribucion_comparacion, mostrar_distribucion_comparacion
+
+
+def estacionalidad(datos_inventario, datos_recibos, datos_embarques, datos_devoluciones):
+    """
+    docstring
+    """
+    with st.sidebar.beta_expander('Configuración de Análisis'):
+        estacionalidad_fechas_contenedor = st.beta_container()
+
+        estacionalidad_cantidad = st.radio('Selecciona las Cantidades:',
+                                            ['Unidades', 'Cajas', 'Tarimas'],
+                                            index=0)
+
+        estacionalidad_tipo = st.radio('Selecciona el Tipo de Resumen:',
+                                        ['Por Mes', 'Por Semana'],
+                                        index=0)
+
+    lista_fechas_errores = checar_integridad_fechas(datos_inventario['Fecha de Inventario'],
+                                                    datos_recibos['Fecha de Recibo'],
+                                                    datos_embarques['Fecha de Embarque'],
+                                                    datos_devoluciones['Fecha de Devolución'])
+
+    if lista_fechas_errores:
+        for error in lista_fechas_errores:
+            mostrar_error(*error)
+    else:
+        fecha_min = obtener_fecha_minmax(datos_inventario['Fecha de Inventario'],
+                                            datos_recibos['Fecha de Recibo'],
+                                            datos_embarques['Fecha de Embarque'],
+                                            datos_devoluciones['Fecha de Devolución'],
+                                            True)
+
+        fecha_max = obtener_fecha_minmax(datos_inventario['Fecha de Inventario'],
+                                            datos_recibos['Fecha de Recibo'],
+                                            datos_embarques['Fecha de Embarque'],
+                                            datos_devoluciones['Fecha de Devolución'],
+                                            False)
+
+        estacionalidad_fechas = estacionalidad_fechas_contenedor.date_input('Selecciona el Rango de Fechas:',
+                                                                            value=(fecha_min, fecha_max),
+                                                                            min_value=fecha_min,
+                                                                            max_value=fecha_max,
+                                                                            key='estacionalidad_fechas')
+
+        ocultar_indice()
+        try:
+            mostrar_estacionalidad(calcular_estacionalidad(datos_inventario.loc[(datos_inventario['Fecha de Inventario'].dt.date >= estacionalidad_fechas[0]) & \
+                                                                                (datos_inventario['Fecha de Inventario'].dt.date <= estacionalidad_fechas[1]),
+                                                                                [estacionalidad_cantidad + ' de Inventario', 'Fecha de Inventario']],
+                                                            datos_recibos.loc[(datos_recibos['Fecha de Recibo'].dt.date >= estacionalidad_fechas[0]) & \
+                                                                                (datos_recibos['Fecha de Recibo'].dt.date <= estacionalidad_fechas[1]),
+                                                                            [estacionalidad_cantidad + ' Recibidas', 'Fecha de Recibo']],
+                                                            datos_embarques.loc[(datos_embarques['Fecha de Embarque'].dt.date >= estacionalidad_fechas[0]) & \
+                                                                                (datos_embarques['Fecha de Embarque'].dt.date <= estacionalidad_fechas[1]),
+                                                                                [estacionalidad_cantidad + ' Embarcadas', 'Fecha de Embarque']],
+                                                            datos_devoluciones.loc[(datos_devoluciones['Fecha de Devolución'].dt.date >= estacionalidad_fechas[0]) & \
+                                                                                    (datos_devoluciones['Fecha de Devolución'].dt.date <= estacionalidad_fechas[1]),
+                                                                                    [estacionalidad_cantidad + ' Devueltas', 'Fecha de Devolución']],
+                                                            estacionalidad_cantidad,
+                                                            estacionalidad_tipo),
+                                    estacionalidad_cantidad,
+                                    estacionalidad_fechas,
+                                    estacionalidad_tipo)
+        except IndexError:
+                        mostrar_error(6)
+
+
+def cargas_operativas(datos_inventario, datos_recibos, datos_embarques, datos_devoluciones):
+    """
+    docstring
+    """
+    with st.sidebar.beta_expander('Configuración de Análisis'):
+        cargas_fechas_contenedor = st.beta_container()
+        
+        cargas_cantidad = st.radio('Selecciona las Cantidades:',
+                                    ['Unidades', 'Cajas', 'Tarimas'],
+                                    index=0)
+
+        cargas_periodo = st.radio('Selecciona el Período de Tiempo:',
+                                    ['Turno', 'Horario'],
+                                    index=0)
+        
+        cargas_secciones_contenedor = st.beta_container()
+
+
+    lista_fechas_errores = checar_integridad_fechas(datos_inventario['Fecha de Inventario'],
+                                                    datos_recibos['Fecha de Recibo'],
+                                                    datos_embarques['Fecha de Embarque'],
+                                                    datos_devoluciones['Fecha de Devolución'])
+
+    if lista_fechas_errores:
+        for error in lista_fechas_errores:
+            mostrar_error(*error)
+    else:
+        fecha_min = obtener_fecha_minmax(datos_inventario['Fecha de Inventario'],
+                                            datos_recibos['Fecha de Recibo'],
+                                            datos_embarques['Fecha de Embarque'],
+                                            datos_devoluciones['Fecha de Devolución'],
+                                            True)
+
+        fecha_max = obtener_fecha_minmax(datos_inventario['Fecha de Inventario'],
+                                            datos_recibos['Fecha de Recibo'],
+                                            datos_embarques['Fecha de Embarque'],
+                                            datos_devoluciones['Fecha de Devolución'],
+                                            False)
+
+        cargas_fechas = cargas_fechas_contenedor.date_input('Selecciona el Rango de Fechas:',
+                                                            value=(fecha_min, fecha_max),
+                                                            min_value=fecha_min,
+                                                            max_value=fecha_max,
+                                                            key='cargas_fechas')
+
+
+        if cargas_periodo == 'Horario':
+            cargas_secciones = cargas_secciones_contenedor.number_input("Selecciona el Número de Secciones del Horario:",
+                                                                        min_value=1,
+                                                                        max_value=12,
+                                                                        value=1,
+                                                                        step=1)
+
+            cargas_cortes = []
+            for i in range(cargas_secciones +  1):
+                corte = cargas_secciones_contenedor.number_input(f'Corte de Horario {i + 1}:',
+                                                                    min_value=0,
+                                                                    max_value=23,
+                                                                    value=0,
+                                                                    step=1,
+                                                                    key=f'cargas_corte_{i}')
+                cargas_cortes.append(corte)
+
+            
+            if checar_integridad_secciones(cargas_cortes):
+                ocultar_indice()
+                try:
+                    mostrar_cargas(*calcular_cargas(datos_recibos.loc[(datos_recibos['Fecha de Recibo'].dt.date >= cargas_fechas[0]) & \
+                                                                    (datos_recibos['Fecha de Recibo'].dt.date <= cargas_fechas[1]),
+                                                                    [cargas_cantidad + ' Recibidas', 'Horario de Recibo']],
+                                                    datos_embarques.loc[(datos_embarques['Fecha de Embarque'].dt.date >= cargas_fechas[0]) & \
+                                                                        (datos_embarques['Fecha de Embarque'].dt.date <= cargas_fechas[1]),
+                                                                    [cargas_cantidad + ' Embarcadas', 'Horario de Embarque']],
+                                                    datos_devoluciones.loc[(datos_devoluciones['Fecha de Devolución'].dt.date >= cargas_fechas[0]) & \
+                                                                        (datos_devoluciones['Fecha de Devolución'].dt.date <= cargas_fechas[1]),
+                                                                        [cargas_cantidad + ' Devueltas', 'Horario de Devolución']],
+                                                    cargas_cantidad,
+                                                    cargas_periodo,
+                                                    cargas_fechas,
+                                                    cargas_cortes),
+                                    cargas_cantidad,
+                                    cargas_periodo,
+                                    cargas_fechas)
+                except IndexError:
+                    mostrar_error(6)
+
+            else:
+                mostrar_error(5)
+
+        else:
+            ocultar_indice()
+            try:
+                mostrar_cargas(*calcular_cargas(datos_recibos.loc[(datos_recibos['Fecha de Recibo'].dt.date >= cargas_fechas[0]) & \
+                                                                  (datos_recibos['Fecha de Recibo'].dt.date <= cargas_fechas[1]),
+                                                                 [cargas_cantidad + ' Recibidas', 'Turno de Recibo']],
+                                                datos_embarques.loc[(datos_embarques['Fecha de Embarque'].dt.date >= cargas_fechas[0]) & \
+                                                                    (datos_embarques['Fecha de Embarque'].dt.date <= cargas_fechas[1]),
+                                                                   [cargas_cantidad + ' Embarcadas', 'Turno de Embarque']],
+                                                datos_devoluciones.loc[(datos_devoluciones['Fecha de Devolución'].dt.date >= cargas_fechas[0]) & \
+                                                                       (datos_devoluciones['Fecha de Devolución'].dt.date <= cargas_fechas[1]),
+                                                                      [cargas_cantidad + ' Devueltas', 'Turno de Devolución']],
+                                                cargas_cantidad,
+                                                cargas_periodo,
+                                                cargas_fechas),
+                                cargas_cantidad,
+                                cargas_periodo,
+                                cargas_fechas)
+            except IndexError:
+                mostrar_error(6)
+
+
+def resumenes_por_dia(datos_inventario, datos_recibos, datos_embarques, datos_devoluciones):
+    """
+    docstring
+    """
+    resumenes_lista_tablas = [datos_recibos, datos_embarques, datos_devoluciones]
+
+    resumenes_lista_tipos = ['Recibos',
+                                'Embarques',
+                                'Devoluciones']
+
+    resumenes_columnas_tiempo = ['Fecha de Recibo',
+                                    'Fecha de Embarque',
+                                    'Fecha de Devolución']
+
+    with st.sidebar.beta_expander('Configuración de Análisis'):
+        resumenes_fechas_contenedor = st.beta_container()
+
+        resumenes_tipo = st.radio('Selecciona el Tipo de Datos:',
+                                    resumenes_lista_tipos,
+                                    index=0)
+
+        resumenes_cantidad = st.radio('Selecciona las Cantidades:',
+                                        ['Unidades', 'Cajas', 'Tarimas'],
+                                        index=0)
+
+        resumenes_minimo_contenedor = st.beta_container()
+
+        resumenes_maximo_contenedor = st.beta_container()
+
+
+        resumenes_secciones = st.number_input('Selecciona el Número de Secciones del Histograma:', 1, 20, 10)
+    
+
+    lista_fechas_errores = checar_integridad_fechas(datos_inventario['Fecha de Inventario'],
+                                                    datos_recibos['Fecha de Recibo'],
+                                                    datos_embarques['Fecha de Embarque'],
+                                                    datos_devoluciones['Fecha de Devolución'])
+
+    if lista_fechas_errores:
+        for error in lista_fechas_errores:
+            mostrar_error(*error)
+    else:
+        fecha_min = obtener_fecha_minmax(datos_inventario['Fecha de Inventario'],
+                                            datos_recibos['Fecha de Recibo'],
+                                            datos_embarques['Fecha de Embarque'],
+                                            datos_devoluciones['Fecha de Devolución'],
+                                            True)
+
+        fecha_max = obtener_fecha_minmax(datos_inventario['Fecha de Inventario'],
+                                            datos_recibos['Fecha de Recibo'],
+                                            datos_embarques['Fecha de Embarque'],
+                                            datos_devoluciones['Fecha de Devolución'],
+                                            False)
+
+        resumenes_fechas = resumenes_fechas_contenedor.date_input('Selecciona el Rango de Fechas:',
+                                                                  value=(fecha_min, fecha_max),
+                                                                  min_value=fecha_min,
+                                                                  max_value=fecha_max,
+                                                                  key='resumenes_fechas')
+
+    
+    resumenes_columnas_cantidades = [resumenes_cantidad + ' Recibidas',
+                                     resumenes_cantidad + ' Embarcadas',
+                                     resumenes_cantidad + ' Devueltas']
+
+    for tabla, tipo, columna_tiempo, columna_cantidades in zip(resumenes_lista_tablas,
+                                                                    resumenes_lista_tipos,
+                                                                    resumenes_columnas_tiempo ,
+                                                                    resumenes_columnas_cantidades):
+        if resumenes_tipo == tipo:
+            ocultar_indice()
+            try:
+                tabla_general = calcular_resumen_generales(tabla.loc[(tabla[columna_tiempo].dt.date >= resumenes_fechas[0]) & \
+                                                                   (tabla[columna_tiempo].dt.date <= resumenes_fechas[1]),
+                                                                  [columna_tiempo, columna_cantidades]],
+                                                         columna_tiempo,
+                                                         columna_cantidades,
+                                                         resumenes_fechas)
+
+                resumenes_minimo = resumenes_minimo_contenedor.number_input(f'Selecciona el Mínimo de {resumenes_cantidad} a Contar:',
+                                                                            min_value=tabla_general['Mínimo'].iloc[0].astype(int),
+                                                                            value=tabla_general['Mínimo'].iloc[0].astype(int),
+                                                                            max_value=tabla_general['Máximo'].iloc[0].astype(int) + 1,
+                                                                            step=1)
+
+                resumenes_maximo = resumenes_maximo_contenedor.number_input(f'Selecciona el Máximo de {resumenes_cantidad} a Contar:',
+                                                                            min_value=tabla_general['Mínimo'].iloc[0].astype(int),
+                                                                            value=tabla_general['Máximo'].iloc[0].astype(int) + 1,
+                                                                            max_value=tabla_general['Máximo'].iloc[0].astype(int) + 1,
+                                                                            step=1)
+
+                mostrar_resumenes(*calcular_resumenes_acotados(tabla.loc[(tabla[columna_tiempo].dt.date >= resumenes_fechas[0]) & \
+                                                                (tabla[columna_tiempo].dt.date <= resumenes_fechas[1]),
+                                                                [columna_tiempo, columna_cantidades]],
+                                                        resumenes_minimo,
+                                                        resumenes_maximo,
+                                                        columna_tiempo,
+                                                        columna_cantidades,
+                                                        resumenes_fechas),
+                                    tabla_general,
+                                    resumenes_tipo,
+                                    columna_tiempo,
+                                    columna_cantidades,
+                                    resumenes_fechas,
+                                    resumenes_secciones)
+                                    
+            except IndexError:
+                mostrar_error(6)
+
+
+def clasificacion_abc_ponderada(datos_sku, datos_inventario, datos_recibos, datos_embarques, datos_devoluciones):
+    """
+    docstring
+    """
+    with st.sidebar.beta_expander('Configuración de Análisis'):
+
+        abc_cantidad = st.radio('Selecciona las Cantidades:',
+                                        ['Unidades', 'Cajas', 'Tarimas'],
+                                        index=0)
+
+        abc_peso_volumen = st.number_input('Selecciona el Valor Porcentual del ABC por Volumen:', 
+                                                    min_value=0,
+                                                    max_value=100,
+                                                    value=50)
+
+        abc_peso_variabilidad = st.number_input('Selecciona el Valor Porcentual del ABC por Variabilidad:', 
+                                                        min_value=0,
+                                                        max_value=100,
+                                                        value=30)
+
+        abc_peso_frecuencia = st.number_input('Selecciona el Valor Porcentual del ABC por Frecuencia:', 
+                                                        min_value=0,
+                                                        max_value=100,
+                                                    value=20)
+
+    if abc_peso_volumen + abc_peso_variabilidad + abc_peso_frecuencia == 100:
+        mostrar_clasificacion_abc(*calcular_clasificacion_abc(datos_embarques[['ID del Producto', abc_cantidad + ' Embarcadas']],
+                                                              abc_cantidad,
+                                                              abc_peso_volumen,
+                                                              abc_peso_frecuencia,
+                                                              abc_peso_variabilidad),
+                                  datos_embarques['Fecha de Embarque'])
+
+        descargar_clasificacion_abc(calcular_clasificacion_abc(datos_embarques[['ID del Producto', abc_cantidad + ' Embarcadas']],
+                                                               abc_cantidad,
+                                                               abc_peso_volumen,
+                                                               abc_peso_frecuencia,
+                                                               abc_peso_variabilidad)[1],
+                                    datos_sku,
+                                    datos_inventario,
+                                    datos_recibos,
+                                    datos_embarques,
+                                    datos_devoluciones)
+
+        st.markdown(boton_de_descarga('.\data\cedis_abc.xlsx',
+                                    'cedis_abc.xlsx',
+                                    'Descargar la Clasificación ABC Ponderada'),
+                    unsafe_allow_html=True)
+    else:
+        mostrar_error(7)
+
+
+def comparacion_abc_cliente(datos_sku):
+    """
+    docstring
+    """
+    if datos_sku['Clasificación ABC de Sintec'].str.contains('SR').any():
+        with st.sidebar.beta_expander('Configuración de Análisis'):
+            comparacion_abc_cliente_sr_contenedor = st.beta_container()
+        
+        if comparacion_abc_cliente_sr_contenedor.checkbox("Ocultar valores 'SR' de la Clasificación ABC de Sintec"):
+            mostrar_comparacion_cliente_absoluta(datos_sku.loc[~datos_sku['Clasificación ABC de Sintec'].str.contains('SR'),
+                                            ['Clasificación ABC del Cliente', 'Clasificación ABC de Sintec']])
+            mostrar_comparacion_cliente_porcentual(datos_sku.loc[~datos_sku['Clasificación ABC de Sintec'].str.contains('SR'),
+                                            ['Clasificación ABC del Cliente', 'Clasificación ABC de Sintec']])
+        else:
+            mostrar_comparacion_cliente_absoluta(datos_sku[['Clasificación ABC del Cliente', 'Clasificación ABC de Sintec']])
+            mostrar_comparacion_cliente_porcentual(datos_sku[['Clasificación ABC del Cliente', 'Clasificación ABC de Sintec']])
+    else:
+        mostrar_comparacion_cliente_absoluta(datos_sku[['Clasificación ABC del Cliente', 'Clasificación ABC de Sintec']])
+        mostrar_comparacion_cliente_porcentual(datos_sku[['Clasificación ABC del Cliente', 'Clasificación ABC de Sintec']])
+
+
+def comparacion_abc_inventario(datos_sku, datos_inventario, datos_embarques):
+    """
+    docstring
+    """
+    with st.sidebar.beta_expander('Configuración de Análisis'):
+
+        comparacion_abc_inventario_cantidad = st.radio('Selecciona las Cantidades:',
+                                                       ['Unidades', 'Cajas', 'Tarimas'],
+                                                       index=0)
+
+        comparacion_abc_inventario_tipo = st.radio('Selecciona el Tipo de Análisis:',
+                                                   ['Por Sumatoria', 'Por Promedio', 'Por Última Foto de Inventario'],
+                                                   index=0)
+
+    lista_fechas_errores = checar_integridad_fechas(fecha_inventario=datos_inventario['Fecha de Inventario'],
+                                                    fecha_embarque=datos_embarques['Fecha de Embarque'])
+
+    if lista_fechas_errores:
+        for error in lista_fechas_errores:
+            mostrar_error(*error)
+    else:
+        fecha_min = obtener_fecha_minmax(fecha_inventario=datos_inventario['Fecha de Inventario'],
+                                         fecha_embarque=datos_embarques['Fecha de Embarque'],
+                                         obten_min=True)
+
+        fecha_max = obtener_fecha_minmax(fecha_inventario=datos_inventario['Fecha de Inventario'],
+                                         fecha_embarque=datos_embarques['Fecha de Embarque'],
+                                         obten_min=False)
+
+        if comparacion_abc_inventario_tipo == 'Por Sumatoria':
+            mostrar_comparacion_inventario(datos_sku[['ID del Producto', 'Clasificación ABC de Sintec']],
+                                        datos_inventario[['ID del Producto', comparacion_abc_inventario_cantidad + ' de Inventario']],
+                                        datos_embarques[['ID del Producto', comparacion_abc_inventario_cantidad + ' Embarcadas']],
+                                        comparacion_abc_inventario_cantidad,
+                                        'sum',
+                                        False,
+                                        (fecha_min, fecha_max))
+
+        elif comparacion_abc_inventario_tipo == 'Por Promedio':
+            mostrar_comparacion_inventario(datos_sku[['ID del Producto', 'Clasificación ABC de Sintec']],
+                                        datos_inventario[['ID del Producto', comparacion_abc_inventario_cantidad + ' de Inventario']],
+                                        datos_embarques[['ID del Producto', comparacion_abc_inventario_cantidad + ' Embarcadas']],
+                                        comparacion_abc_inventario_cantidad,
+                                        'mean',
+                                        False,
+                                        (fecha_min, fecha_max))
+
+        else:
+            mostrar_comparacion_inventario(datos_sku[['ID del Producto', 'Clasificación ABC de Sintec']],
+                                        datos_inventario[['ID del Producto', 'Fecha de Inventario', comparacion_abc_inventario_cantidad + ' de Inventario']],
+                                        datos_embarques[['ID del Producto', comparacion_abc_inventario_cantidad + ' Embarcadas']],
+                                        comparacion_abc_inventario_cantidad,
+                                        'sum',
+                                        True,
+                                        (fecha_min, fecha_max))
+
+
+def distribucion_volumen_mensual(datos_sku, datos_embarques):
+    """
+    docstring
+    """
+    with st.sidebar.beta_expander('Configuración de Análisis'):
+        volumen_mensual_fechas_contenedor = st.beta_container()
+        volumen_mensual_secciones_contenedor = st.beta_container()
+
+
+    lista_fechas_errores = checar_integridad_fechas(fecha_embarque=datos_embarques['Fecha de Embarque'])
+
+    if lista_fechas_errores:
+        for error in lista_fechas_errores:
+            mostrar_error(*error)
+    else:
+        fecha_min = obtener_fecha_minmax(fecha_embarque=datos_embarques['Fecha de Embarque'],
+                                         obten_min=True)
+
+        fecha_max = obtener_fecha_minmax(fecha_embarque=datos_embarques['Fecha de Embarque'],
+                                         obten_min=False)
+
+        volumen_mensual_fechas = volumen_mensual_fechas_contenedor.date_input('Selecciona el Rango de Fechas:',
+                                                                                value=(fecha_min, fecha_max),
+                                                                                min_value=fecha_min,
+                                                                                max_value=fecha_max,
+                                                                                key='volumen_mensual_fechas')
+    
+
+        volumen_mensual_secciones = volumen_mensual_secciones_contenedor.number_input("Selecciona el Número de Secciones del Volumen Promedio Mensual:",
+                                                                                        min_value=1,
+                                                                                        max_value=10,
+                                                                                        value=1,
+                                                                                        step=1)
+
+        volumen_mensual_cortes = []
+        for i in range(volumen_mensual_secciones +  1):
+            corte = volumen_mensual_secciones_contenedor.number_input(f'Corte de Volumen Promedio Mensual {i + 1}:',
+                                                                        min_value=0,
+                                                                        # max_value=23,
+                                                                        value=0,
+                                                                        step=1,
+                                                                        key=f'volumen_mensual_corte_{i}')
+            volumen_mensual_cortes.append(corte)
+
+        
+        if checar_integridad_secciones(volumen_mensual_cortes):
+            try:
+                mostrar_distribucion_volumen(*calcular_distribucion_volumen(datos_sku[['ID del Producto', 'Volumen x Unidad']],
+                                                                            datos_embarques.loc[(datos_embarques['Fecha de Embarque'].dt.date >= volumen_mensual_fechas[0]) & \
+                                                                                                (datos_embarques['Fecha de Embarque'].dt.date <= volumen_mensual_fechas[1]),
+                                                                                            ['ID del Producto', 'Unidades Embarcadas', 'Fecha de Embarque']],
+                                                                            volumen_mensual_cortes),
+                                            volumen_mensual_fechas)
+
+                descargar_distribucion_volumen(calcular_distribucion_volumen(datos_sku[['ID del Producto', 'Volumen x Unidad']],
+                                                                            datos_embarques.loc[(datos_embarques['Fecha de Embarque'].dt.date >= volumen_mensual_fechas[0]) & \
+                                                                                                (datos_embarques['Fecha de Embarque'].dt.date <= volumen_mensual_fechas[1]),
+                                                                                            ['ID del Producto', 'Unidades Embarcadas', 'Fecha de Embarque']],
+                                                                            volumen_mensual_cortes)[0])
+
+
+                st.markdown(boton_de_descarga('.\data\cedis_distribucion_volumen.xlsx',
+                                            'cedis_distribucion_volumen.xlsx',
+                                            'Descargar Distribución de Volumen Mensual'),
+                            unsafe_allow_html=True)
+
+            except IndexError:
+                mostrar_error(6)
+
+        else:
+            mostrar_error(5)
+
+
+def distribucion_incremental_ordenes(datos_sku, datos_embarques):
+    """
+    docstring
+    """
+    with st.sidebar.beta_expander('Configuración de Análisis'):
+        incremental_fechas_contenedor = st.beta_container()
+        incremental_cliente = st.selectbox('Selecciona el ID del Cliente:',
+                                            ['Todos'] +  sorted(datos_embarques['ID del Cliente'].unique().tolist()),
+                                            key='incremental_cliente')
+        incremental_familia_1_contenedor = st.beta_container()
+        incremental_checkbox_1_contenedor = st.beta_container()
+        incremental_familia_2_contenedor = st.beta_container()
+        incremental_checkbox_2_contenedor = st.beta_container()
+        incremental_familia_3_contenedor = st.beta_container()
+        incremental_checkbox_3_contenedor = st.beta_container()
+
+
+    lista_fechas_errores = checar_integridad_fechas(fecha_embarque=datos_embarques['Fecha de Embarque'])
+
+    if lista_fechas_errores:
+        for error in lista_fechas_errores:
+            mostrar_error(*error)
+    else:
+        fecha_min = obtener_fecha_minmax(fecha_embarque=datos_embarques['Fecha de Embarque'],
+                                         obten_min=True)
+
+        fecha_max = obtener_fecha_minmax(fecha_embarque=datos_embarques['Fecha de Embarque'],
+                                         obten_min=False)
+
+        incremental_fechas = incremental_fechas_contenedor.date_input('Selecciona el Rango de Fechas:',
+                                                                        value=(fecha_min, fecha_max),
+                                                                        min_value=fecha_min,
+                                                                        max_value=fecha_max,
+                                                                        key='incremental_fechas')
+
+        if incremental_checkbox_1_contenedor.checkbox('Seleccionar Todas', key='incremental_familia_1'):
+            incremental_familia_1 = incremental_familia_1_contenedor.multiselect("Selecciona la(s) 'Familia de Almacén I':",
+                                                                                datos_sku['Familia de Almacén I'].unique().tolist(),
+                                                                                datos_sku['Familia de Almacén I'].unique().tolist())
+        else:
+            incremental_familia_1 = incremental_familia_1_contenedor.multiselect("Selecciona la(s) 'Familia de Almacén I':",
+                                                                                datos_sku['Familia de Almacén I'].unique().tolist())
+
+        if incremental_familia_1:
+            if incremental_checkbox_2_contenedor.checkbox('Seleccionar Todas', key='incremental_familia_2'):
+                incremental_familia_2 = incremental_familia_2_contenedor.multiselect("Selecciona la(s) 'Familia de Almacén II':",
+                                                                                    datos_sku.loc[datos_sku['Familia de Almacén I'].isin(incremental_familia_1),\
+                                                                                        'Familia de Almacén II'].unique().tolist(),
+                                                                                    datos_sku.loc[datos_sku['Familia de Almacén I'].isin(incremental_familia_1),\
+                                                                                        'Familia de Almacén II'].unique().tolist())
+            else:
+                incremental_familia_2 = incremental_familia_2_contenedor.multiselect("Selecciona la(s) 'Familia de Almacén II':",
+                                                                                    datos_sku.loc[datos_sku['Familia de Almacén I'].isin(incremental_familia_1),\
+                                                                                        'Familia de Almacén II'].unique().tolist())     
+
+            if incremental_familia_2:
+                if incremental_checkbox_3_contenedor.checkbox('Seleccionar Todas', key='incremental_familia_3'):
+                    incremental_familia_3 = incremental_familia_3_contenedor.multiselect("Selecciona la(s) 'Familia de Almacén III':",
+                                                                                    datos_sku.loc[datos_sku['Familia de Almacén II'].isin(incremental_familia_2),\
+                                                                                        'Familia de Almacén III'].unique().tolist(),
+                                                                                    datos_sku.loc[datos_sku['Familia de Almacén II'].isin(incremental_familia_2),\
+                                                                                        'Familia de Almacén III'].unique().tolist())
+                else:
+                    incremental_familia_3 = incremental_familia_3_contenedor.multiselect("Selecciona la(s) 'Familia de Almacén III':",
+                                                                                    datos_sku.loc[datos_sku['Familia de Almacén II'].isin(incremental_familia_2),\
+                                                                                        'Familia de Almacén III'].unique().tolist())                        
+                
+                if incremental_familia_3:            
+                    try:
+                        if incremental_cliente == 'Todos':
+                            mostrar_distribucion_ordenes(calcular_distribucion_ordenes(datos_sku.loc[datos_sku['Familia de Almacén I'].isin(incremental_familia_1) & \
+                                                                                                        datos_sku['Familia de Almacén II'].isin(incremental_familia_2) & \
+                                                                                                        datos_sku['Familia de Almacén III'].isin(incremental_familia_3),
+                                                                                                        ['ID del Producto', 'Cajas x Tarima']],
+                                                                                        datos_embarques.loc[(datos_embarques['Fecha de Embarque'].dt.date >= incremental_fechas[0]) & \
+                                                                                                            (datos_embarques['Fecha de Embarque'].dt.date <= incremental_fechas[1]),
+                                                                                                        ['ID del Producto', 'Cajas Embarcadas']]),
+                                                            incremental_fechas)
+                        else:
+                            mostrar_distribucion_ordenes(calcular_distribucion_ordenes(datos_sku.loc[datos_sku['Familia de Almacén I'].isin(incremental_familia_1) & \
+                                                                                                        datos_sku['Familia de Almacén II'].isin(incremental_familia_2) & \
+                                                                                                        datos_sku['Familia de Almacén III'].isin(incremental_familia_3),
+                                                                                                        ['ID del Producto', 'Cajas x Tarima']],
+                                                                                        datos_embarques.loc[(datos_embarques['Fecha de Embarque'].dt.date >= incremental_fechas[0]) & \
+                                                                                                            (datos_embarques['Fecha de Embarque'].dt.date <= incremental_fechas[1]) & \
+                                                                                                            (datos_embarques['ID del Cliente'] == incremental_cliente),
+                                                                                                        ['ID del Producto', 'Cajas Embarcadas']]),
+                                                            incremental_fechas)
+                    except IndexError:
+                        mostrar_error(6)
+
+
+def distribucion_comparacion(datos_sku, datos_embarques):
+    """
+    docstring
+    """
+    with st.sidebar.beta_expander('Configuración de Análisis'):
+        comparacion_fechas_contenedor = st.beta_container()
+        comparacion_cliente = st.selectbox('Selecciona el ID del Cliente:',
+                                            ['Todos'] +  sorted(datos_embarques['ID del Cliente'].unique().tolist()),
+                                            key='comparacion_cliente')
+        comparacion_familia_1_contenedor = st.beta_container()
+        comparacion_checkbox_1_contenedor = st.beta_container()
+        comparacion_familia_2_contenedor = st.beta_container()
+        comparacion_checkbox_2_contenedor = st.beta_container()
+        comparacion_familia_3_contenedor = st.beta_container()
+        comparacion_checkbox_3_contenedor = st.beta_container()
+
+
+    lista_fechas_errores = checar_integridad_fechas(fecha_embarque=datos_embarques['Fecha de Embarque'])
+
+    if lista_fechas_errores:
+        for error in lista_fechas_errores:
+            mostrar_error(*error)
+    else:
+        fecha_min = obtener_fecha_minmax(fecha_embarque=datos_embarques['Fecha de Embarque'],
+                                         obten_min=True)
+
+        fecha_max = obtener_fecha_minmax(fecha_embarque=datos_embarques['Fecha de Embarque'],
+                                         obten_min=False)
+
+        comparacion_fechas = comparacion_fechas_contenedor.date_input('Selecciona el Rango de Fechas:',
+                                                                        value=(fecha_min, fecha_max),
+                                                                        min_value=fecha_min,
+                                                                        max_value=fecha_max,
+                                                                        key='comparacion_fechas')
+
+        if comparacion_checkbox_1_contenedor.checkbox('Seleccionar Todas', key='comparacion_familia_1'):
+            comparacion_familia_1 = comparacion_familia_1_contenedor.multiselect("Selecciona la(s) 'Familia de Almacén I':",
+                                                                                datos_sku['Familia de Almacén I'].unique().tolist(),
+                                                                                datos_sku['Familia de Almacén I'].unique().tolist())
+        else:
+            comparacion_familia_1 = comparacion_familia_1_contenedor.multiselect("Selecciona la(s) 'Familia de Almacén I':",
+                                                                                datos_sku['Familia de Almacén I'].unique().tolist())
+
+        if comparacion_familia_1:
+            if comparacion_checkbox_2_contenedor.checkbox('Seleccionar Todas', key='comparacion_familia_2'):
+                comparacion_familia_2 = comparacion_familia_2_contenedor.multiselect("Selecciona la(s) 'Familia de Almacén II':",
+                                                                                    datos_sku.loc[datos_sku['Familia de Almacén I'].isin(comparacion_familia_1),\
+                                                                                        'Familia de Almacén II'].unique().tolist(),
+                                                                                    datos_sku.loc[datos_sku['Familia de Almacén I'].isin(comparacion_familia_1),\
+                                                                                        'Familia de Almacén II'].unique().tolist())
+            else:
+                comparacion_familia_2 = comparacion_familia_2_contenedor.multiselect("Selecciona la(s) 'Familia de Almacén II':",
+                                                                                    datos_sku.loc[datos_sku['Familia de Almacén I'].isin(comparacion_familia_1),\
+                                                                                        'Familia de Almacén II'].unique().tolist())     
+
+            if comparacion_familia_2:
+                if comparacion_checkbox_3_contenedor.checkbox('Seleccionar Todas', key='comparacion_familia_3'):
+                    comparacion_familia_3 = comparacion_familia_3_contenedor.multiselect("Selecciona la(s) 'Familia de Almacén III':",
+                                                                                    datos_sku.loc[datos_sku['Familia de Almacén II'].isin(comparacion_familia_2),\
+                                                                                        'Familia de Almacén III'].unique().tolist(),
+                                                                                    datos_sku.loc[datos_sku['Familia de Almacén II'].isin(comparacion_familia_2),\
+                                                                                        'Familia de Almacén III'].unique().tolist())
+                else:
+                    comparacion_familia_3 = comparacion_familia_3_contenedor.multiselect("Selecciona la(s) 'Familia de Almacén III':",
+                                                                                    datos_sku.loc[datos_sku['Familia de Almacén II'].isin(comparacion_familia_2),\
+                                                                                        'Familia de Almacén III'].unique().tolist())                        
+                
+                if comparacion_familia_3:            
+                    try:
+                        if comparacion_cliente == 'Todos':
+                            mostrar_distribucion_comparacion(calcular_distribucion_comparacion(datos_sku.loc[datos_sku['Familia de Almacén I'].isin(comparacion_familia_1) & \
+                                                                                                        datos_sku['Familia de Almacén II'].isin(comparacion_familia_2) & \
+                                                                                                        datos_sku['Familia de Almacén III'].isin(comparacion_familia_3),
+                                                                                                        ['ID del Producto', 'Cajas x Tarima']],
+                                                                                        datos_embarques.loc[(datos_embarques['Fecha de Embarque'].dt.date >= comparacion_fechas[0]) & \
+                                                                                                            (datos_embarques['Fecha de Embarque'].dt.date <= comparacion_fechas[1]),
+                                                                                                        ['Pedido', 'ID del Producto', 'Cajas Embarcadas']]),
+                                                            comparacion_fechas)
+                        else:
+                            mostrar_distribucion_comparacion(calcular_distribucion_comparacion(datos_sku.loc[datos_sku['Familia de Almacén I'].isin(comparacion_familia_1) & \
+                                                                                                        datos_sku['Familia de Almacén II'].isin(comparacion_familia_2) & \
+                                                                                                        datos_sku['Familia de Almacén III'].isin(comparacion_familia_3),
+                                                                                                        ['ID del Producto', 'Cajas x Tarima']],
+                                                                                        datos_embarques.loc[(datos_embarques['Fecha de Embarque'].dt.date >= comparacion_fechas[0]) & \
+                                                                                                            (datos_embarques['Fecha de Embarque'].dt.date <= comparacion_fechas[1]) & \
+                                                                                                            (datos_embarques['ID del Cliente'] == comparacion_cliente),
+                                                                                                        ['Pedido', 'ID del Producto', 'Cajas Embarcadas']]),
+                                                            comparacion_fechas)
+
+                    except IndexError:
+                        mostrar_error(6)
 
 
 def main():
@@ -47,9 +725,11 @@ def main():
                                  3: 'Cargas Operativas',
                                  4: 'Resúmenes por Día',
                                  5: 'Clasificación ABC Ponderada',
-                                 6: 'Distribución de Volumen Mensual',
-                                 7: 'Distribución Incremental de Ordenes',
-                                 8: 'Distribución Completa/Parcial/Mixta'}
+                                 6: 'ABC Sintec vs ABC Cliente',
+                                 7: 'ABC Sintec vs Inventario',
+                                 8: 'Distribución de Volumen Mensual',
+                                 9: 'Distribución Incremental de Ordenes',
+                                 10: 'Distribución Completa/Parcial/Mixta'}
                                  
             analisis_seleccionado = st.sidebar.selectbox('Selecciona el Análisis a Ejecutar:',
                                                           options=list(opciones_analisis.items()),
@@ -57,7 +737,6 @@ def main():
                                                           format_func=lambda opcion: opcion[1])
 
             if analisis_seleccionado[0] == 1:
-
                 mostrar_tablas(tabla_sku.head(10),
                                tabla_inventario.head(10),
                                tabla_recibos.head(10),
@@ -65,414 +744,31 @@ def main():
                                tabla_devoluciones.head(10))
 
             elif analisis_seleccionado[0] == 2:
-
-                with st.sidebar.beta_expander('Configuración de Análisis'):
-                    estacionalidad_fechas_contenedor = st.beta_container()
-
-                    estacionalidad_cantidad = st.radio('Selecciona las Cantidades:',
-                                                       ['Unidades', 'Cajas', 'Tarimas'],
-                                                       index=0)
-
-                    estacionalidad_tipo = st.radio('Selecciona el Tipo de Resumen:',
-                                                   ['Por Mes', 'Por Semana'],
-                                                   index=0)
-
-                lista_fechas_errores = checar_integridad_fechas(tabla_inventario['Fecha de Inventario'],
-                                                                tabla_recibos['Fecha de Recibo'],
-                                                                tabla_embarques['Fecha de Embarque'],
-                                                                tabla_devoluciones['Fecha de Devolución'])
-
-                if lista_fechas_errores:
-                    for error in lista_fechas_errores:
-                        mostrar_error(*error)
-                else:
-                    fecha_min = obtener_fecha_minmax(tabla_inventario['Fecha de Inventario'],
-                                                     tabla_recibos['Fecha de Recibo'],
-                                                     tabla_embarques['Fecha de Embarque'],
-                                                     tabla_devoluciones['Fecha de Devolución'],
-                                                     True)
-
-                    fecha_max = obtener_fecha_minmax(tabla_inventario['Fecha de Inventario'],
-                                                     tabla_recibos['Fecha de Recibo'],
-                                                     tabla_embarques['Fecha de Embarque'],
-                                                     tabla_devoluciones['Fecha de Devolución'],
-                                                     False)
-
-                    estacionalidad_fechas = estacionalidad_fechas_contenedor.date_input('Selecciona el Rango de Fechas:',
-                                                                                        value=(fecha_min, fecha_max),
-                                                                                        min_value=fecha_min,
-                                                                                        max_value=fecha_max,
-                                                                                        key='estacionalidad_fechas')
-
-                    ocultar_indice()
-                    try:
-                        mostrar_estacionalidad(calcular_estacionalidad(tabla_inventario.loc[(tabla_inventario['Fecha de Inventario'].dt.date >= estacionalidad_fechas[0]) & \
-                                                                                            (tabla_inventario['Fecha de Inventario'].dt.date <= estacionalidad_fechas[1]),
-                                                                                            [estacionalidad_cantidad + ' de Inventario', 'Fecha de Inventario']],
-                                                                        tabla_recibos.loc[(tabla_recibos['Fecha de Recibo'].dt.date >= estacionalidad_fechas[0]) & \
-                                                                                            (tabla_recibos['Fecha de Recibo'].dt.date <= estacionalidad_fechas[1]),
-                                                                                        [estacionalidad_cantidad + ' Recibidas', 'Fecha de Recibo']],
-                                                                        tabla_embarques.loc[(tabla_embarques['Fecha de Embarque'].dt.date >= estacionalidad_fechas[0]) & \
-                                                                                            (tabla_embarques['Fecha de Embarque'].dt.date <= estacionalidad_fechas[1]),
-                                                                                            [estacionalidad_cantidad + ' Embarcadas', 'Fecha de Embarque']],
-                                                                        tabla_devoluciones.loc[(tabla_devoluciones['Fecha de Devolución'].dt.date >= estacionalidad_fechas[0]) & \
-                                                                                                (tabla_devoluciones['Fecha de Devolución'].dt.date <= estacionalidad_fechas[1]),
-                                                                                                [estacionalidad_cantidad + ' Devueltas', 'Fecha de Devolución']],
-                                                                        estacionalidad_cantidad,
-                                                                        estacionalidad_tipo),
-                                                estacionalidad_cantidad,
-                                                estacionalidad_fechas,
-                                                estacionalidad_tipo)
-                    except IndexError:
-                        mostrar_error(6)
-                                                   
+                estacionalidad(tabla_inventario, tabla_recibos, tabla_embarques, tabla_devoluciones)    
+            
             elif analisis_seleccionado[0] == 3:
-
-                with st.sidebar.beta_expander('Configuración de Análisis'):
-                    cargas_fechas_contenedor = st.beta_container()
-                    
-                    cargas_cantidad = st.radio('Selecciona las Cantidades:',
-                                               ['Unidades', 'Cajas', 'Tarimas'],
-                                               index=0)
-
-                    cargas_periodo = st.radio('Selecciona el Período de Tiempo:',
-                                               ['Turno', 'Horario'],
-                                               index=0)
-                    
-                    cargas_secciones_contenedor = st.beta_container()
-
-
-                lista_fechas_errores = checar_integridad_fechas(tabla_inventario['Fecha de Inventario'],
-                                                                tabla_recibos['Fecha de Recibo'],
-                                                                tabla_embarques['Fecha de Embarque'],
-                                                                tabla_devoluciones['Fecha de Devolución'])
-
-                if lista_fechas_errores:
-                    for error in lista_fechas_errores:
-                        mostrar_error(*error)
-                else:
-                    fecha_min = obtener_fecha_minmax(tabla_inventario['Fecha de Inventario'],
-                                                     tabla_recibos['Fecha de Recibo'],
-                                                     tabla_embarques['Fecha de Embarque'],
-                                                     tabla_devoluciones['Fecha de Devolución'],
-                                                     True)
-
-                    fecha_max = obtener_fecha_minmax(tabla_inventario['Fecha de Inventario'],
-                                                     tabla_recibos['Fecha de Recibo'],
-                                                     tabla_embarques['Fecha de Embarque'],
-                                                     tabla_devoluciones['Fecha de Devolución'],
-                                                     False)
-
-                    cargas_fechas = cargas_fechas_contenedor.date_input('Selecciona el Rango de Fechas:',
-                                                                        value=(fecha_min, fecha_max),
-                                                                        min_value=fecha_min,
-                                                                        max_value=fecha_max,
-                                                                        key='cargas_fechas')
-   
-
-                    if cargas_periodo == 'Horario':
-                        cargas_secciones = cargas_secciones_contenedor.number_input("Selecciona el Número de Secciones del Horario:",
-                                                                                    min_value=1,
-                                                                                    max_value=12,
-                                                                                    value=1,
-                                                                                    step=1)
-
-                        cargas_cortes = []
-                        for i in range(cargas_secciones +  1):
-                            corte = cargas_secciones_contenedor.number_input(f'Corte de Horario {i + 1}:',
-                                                                             min_value=0,
-                                                                             max_value=23,
-                                                                             value=0,
-                                                                             step=1,
-                                                                             key=f'cargas_corte_{i}')
-                            cargas_cortes.append(corte)
-
-                        
-                        if checar_integridad_secciones(cargas_cortes):
-                            ocultar_indice()
-                            try:
-                                mostrar_cargas(*calcular_cargas(tabla_recibos.loc[(tabla_recibos['Fecha de Recibo'].dt.date >= cargas_fechas[0]) & \
-                                                                                (tabla_recibos['Fecha de Recibo'].dt.date <= cargas_fechas[1]),
-                                                                                [cargas_cantidad + ' Recibidas', 'Horario de Recibo']],
-                                                                tabla_embarques.loc[(tabla_embarques['Fecha de Embarque'].dt.date >= cargas_fechas[0]) & \
-                                                                                    (tabla_embarques['Fecha de Embarque'].dt.date <= cargas_fechas[1]),
-                                                                                [cargas_cantidad + ' Embarcadas', 'Horario de Embarque']],
-                                                                tabla_devoluciones.loc[(tabla_devoluciones['Fecha de Devolución'].dt.date >= cargas_fechas[0]) & \
-                                                                                    (tabla_devoluciones['Fecha de Devolución'].dt.date <= cargas_fechas[1]),
-                                                                                    [cargas_cantidad + ' Devueltas', 'Horario de Devolución']],
-                                                                cargas_cantidad,
-                                                                cargas_periodo,
-                                                                cargas_fechas,
-                                                                cargas_cortes),
-                                                cargas_cantidad,
-                                                cargas_periodo,
-                                                cargas_fechas)
-                            except IndexError:
-                                mostrar_error(6)
-
-                        else:
-                            mostrar_error(5)
-
-                    else:
-                        ocultar_indice()
-                        try:
-                            mostrar_cargas(*calcular_cargas(tabla_recibos.loc[(tabla_recibos['Fecha de Recibo'].dt.date >= cargas_fechas[0]) & \
-                                                                            (tabla_recibos['Fecha de Recibo'].dt.date <= cargas_fechas[1]),
-                                                                            [cargas_cantidad + ' Recibidas', 'Turno de Recibo']],
-                                                            tabla_embarques.loc[(tabla_embarques['Fecha de Embarque'].dt.date >= cargas_fechas[0]) & \
-                                                                                (tabla_embarques['Fecha de Embarque'].dt.date <= cargas_fechas[1]),
-                                                                            [cargas_cantidad + ' Embarcadas', 'Turno de Embarque']],
-                                                            tabla_devoluciones.loc[(tabla_devoluciones['Fecha de Devolución'].dt.date >= cargas_fechas[0]) & \
-                                                                                (tabla_devoluciones['Fecha de Devolución'].dt.date <= cargas_fechas[1]),
-                                                                                [cargas_cantidad + ' Devueltas', 'Turno de Devolución']],
-                                                            cargas_cantidad,
-                                                            cargas_periodo,
-                                                            cargas_fechas),
-                                            cargas_cantidad,
-                                            cargas_periodo,
-                                            cargas_fechas)
-                        except IndexError:
-                            mostrar_error(6)
-
+                cargas_operativas(tabla_inventario, tabla_recibos, tabla_embarques, tabla_devoluciones)
+                
             elif analisis_seleccionado[0] == 4:
-   
-                resumenes_lista_tablas = [tabla_recibos, tabla_embarques, tabla_devoluciones]
-   
-                resumenes_lista_tipos = ['Recibos',
-                                         'Embarques',
-                                         'Devoluciones']
-   
-                resumenes_columnas_tiempo = ['Fecha de Recibo',
-                                             'Fecha de Embarque',
-                                             'Fecha de Devolución']
-
-                with st.sidebar.beta_expander('Configuración de Análisis'):
-                    resumenes_fechas_contenedor = st.beta_container()
-
-                    resumenes_tipo = st.radio('Selecciona el Tipo de Datos:',
-                                              resumenes_lista_tipos,
-                                              index=0)
-
-                    resumenes_cantidad = st.radio('Selecciona las Cantidades:',
-                                                  ['Unidades', 'Cajas', 'Tarimas'],
-                                                  index=0)
-
-                    resumenes_minimo = st.number_input(f'Selecciona el Mínimo de {resumenes_cantidad} a Contar:',
-                                                          min_value=0, value=0, step=1)
-
-                    resumenes_maximo = st.number_input(f'Selecciona el Máximo de {resumenes_cantidad} a Contar:',
-                                                          min_value=0, value=100_000, step=1)
-
-                    resumenes_secciones = st.number_input('Selecciona el Número de Secciones del Histograma:',
-                                                          1, 20, 10)
-                
-
-                lista_fechas_errores = checar_integridad_fechas(tabla_inventario['Fecha de Inventario'],
-                                                                tabla_recibos['Fecha de Recibo'],
-                                                                tabla_embarques['Fecha de Embarque'],
-                                                                tabla_devoluciones['Fecha de Devolución'])
-
-                if lista_fechas_errores:
-                    for error in lista_fechas_errores:
-                        mostrar_error(*error)
-                else:
-                    fecha_min = obtener_fecha_minmax(tabla_inventario['Fecha de Inventario'],
-                                                     tabla_recibos['Fecha de Recibo'],
-                                                     tabla_embarques['Fecha de Embarque'],
-                                                     tabla_devoluciones['Fecha de Devolución'],
-                                                     True)
-
-                    fecha_max = obtener_fecha_minmax(tabla_inventario['Fecha de Inventario'],
-                                                     tabla_recibos['Fecha de Recibo'],
-                                                     tabla_embarques['Fecha de Embarque'],
-                                                     tabla_devoluciones['Fecha de Devolución'],
-                                                     False)
-
-                    resumenes_fechas = resumenes_fechas_contenedor.date_input('Selecciona el Rango de Fechas:',
-                                                                              value=(fecha_min, fecha_max),
-                                                                              min_value=fecha_min,
-                                                                              max_value=fecha_max,
-                                                                              key='resumenes_fechas')
-
-                
-                resumenes_columnas_cantidades = [resumenes_cantidad + ' Recibidas',
-                                                 resumenes_cantidad + ' Embarcadas',
-                                                 resumenes_cantidad + ' Devueltas']
-
-                for tabla, tipo, columna_tiempo, columna_cantidades in zip(resumenes_lista_tablas,
-                                                                               resumenes_lista_tipos,
-                                                                               resumenes_columnas_tiempo ,
-                                                                               resumenes_columnas_cantidades):
-                    if resumenes_tipo == tipo:
-                        ocultar_indice()
-                        try:
-                            mostrar_resumenes(*calcular_resumenes(tabla.loc[(tabla[columna_tiempo].dt.date >= resumenes_fechas[0]) & \
-                                                                            (tabla[columna_tiempo].dt.date <= resumenes_fechas[1]),
-                                                                           [columna_tiempo, columna_cantidades]],\
-                                                                  resumenes_minimo,
-                                                                  resumenes_maximo,
-                                                                  columna_tiempo,
-                                                                  columna_cantidades,
-                                                                  resumenes_fechas),
-                                              resumenes_tipo,
-                                              columna_tiempo,
-                                              columna_cantidades,
-                                              resumenes_fechas,
-                                              resumenes_secciones)
-                        except IndexError:
-                            mostrar_error(6)
+                resumenes_por_dia(tabla_inventario, tabla_recibos, tabla_embarques, tabla_devoluciones)
 
             elif analisis_seleccionado[0] == 5:
-                abc_cantidad = st.sidebar.radio(
-                    'Selecciona las Cantidades a Usar:',
-                    ['Unidades', 'Cajas', 'Tarimas'],
-                    index=0)
-
-                abc_peso_volumen = st.sidebar.number_input('Selecciona el valor del ABC por Volumen:', 
-                                                           min_value=0,
-                                                           max_value=100,
-                                                           value=50)
-
-                abc_peso_variabilidad = st.sidebar.number_input('Selecciona el valor del ABC por Variabilidad:', 
-                                                                min_value=0,
-                                                                max_value=100,
-                                                                value=30)
-
-                abc_peso_frecuencia = st.sidebar.number_input('Selecciona el valor del ABC por Frecuencia:', 
-                                                              min_value=0,
-                                                              max_value=100,
-                                                              value=20)
-
-                df = mostrar_clasificacion_abc(*calcular_clasificacion_abc(tabla_embarques[['ID del Producto', abc_cantidad + ' Embarcadas']],
-                                                                      abc_cantidad,
-                                                                      abc_peso_volumen,
-                                                                      abc_peso_frecuencia,
-                                                                      abc_peso_variabilidad),
-                                                tabla_recibos['Fecha de Recibo'])
-                
-                mostrar_comparacion_absoluta(tabla_sku[['ID del Producto', 'Clasificación ABC del Cliente']],
-                                             df,
-                                             tabla_recibos['Fecha de Recibo'])
-
-                mostrar_comparacion_porcentual(tabla_sku[['ID del Producto', 'Clasificación ABC del Cliente']],
-                                               df,
-                                               tabla_recibos['Fecha de Recibo'])
-
-                calcular_abc_comparativo(tabla_inventario[['ID del Producto', abc_cantidad + ' de Inventario']],
-                                         tabla_embarques[['ID del Producto', abc_cantidad + ' Embarcadas']],
-                                         df,
-                                         abc_cantidad,
-                                         tabla_recibos['Fecha de Recibo'])
-                
-                # del tabla_sku['Clasificación ABC Sintec']
-
-                # df_total = pd.merge(tabla_sku, df, how='inner', on='ID del Producto')
-
-                # with pd.ExcelWriter(".\data\cedis_abc.xlsx") as writer:
-                #     df_total.to_excel(writer, sheet_name="Información SKU", index=False)
-                #     tabla_inventario.to_excel(writer, sheet_name="Foto de Inventarios", index=False)
-                #     tabla_recibos.to_excel(writer, sheet_name="Base de Recibo", index=False)
-                #     tabla_embarques.to_excel(writer, sheet_name="Base de Embarque", index=False)
-                #     tabla_devoluciones.to_excel(writer, sheet_name="Base de Devoluciones", index=False)
-
-                # st.markdown(boton_de_descarga('.\data\cedis_abc.xlsx',
-                #                             'cedis_abc.xlsx',
-                #                             'Descarga aquí la Clasificación ABC Ponderada'),
-                #             unsafe_allow_html=True)
+                clasificacion_abc_ponderada(tabla_sku, tabla_inventario, tabla_recibos, tabla_embarques, tabla_devoluciones)
 
             elif analisis_seleccionado[0] == 6:
-                distribucion_volumen_secciones = st.sidebar.number_input('Selecciona el Número de Secciones del Histograma:',
-                                                                         1,
-                                                                         20,
-                                                                         7)
-                
-                mostrar_distribucion_volumen(calcular_distribucion_volumen(tabla_embarques[['ID del Producto', 'Unidades Embarcadas', 'Fecha de Embarque']],
-                                                                           tabla_sku[['ID del Producto', 'Volumen x Unidad']]),
-                                             distribucion_volumen_secciones,
-                                             tabla_recibos['Fecha de Recibo'])
+                comparacion_abc_cliente(tabla_sku)
 
             elif analisis_seleccionado[0] == 7:
-                contenedor_familia_1 = st.sidebar.beta_container()
-
-                if st.sidebar.checkbox('Seleccionar Todas', key='familia_1'):
-                    distribucion_ordenes_familia_1 = contenedor_familia_1.multiselect("Selecciona la(s) 'Familia de Almacén I':",
-                                                                                      tabla_sku['Familia de Almacén I'].unique().tolist(),
-                                                                                      tabla_sku['Familia de Almacén I'].unique().tolist())
-                else:
-                    distribucion_ordenes_familia_1 = contenedor_familia_1.multiselect("Selecciona la(s) 'Familia de Almacén I':",
-                                                                                      tabla_sku['Familia de Almacén I'].unique().tolist())
-
-                if distribucion_ordenes_familia_1:
-                    contenedor_familia_2 = st.sidebar.beta_container()
-
-                    if st.sidebar.checkbox('Seleccionar Todas', key='familia_2'):
-                        distribucion_ordenes_familia_2 = contenedor_familia_2.multiselect("Selecciona la(s) 'Familia de Almacén II':",
-                                                                                          tabla_sku.loc[tabla_sku['Familia de Almacén I'].isin(distribucion_ordenes_familia_1), 'Familia de Almacén II'].unique().tolist(),
-                                                                                          tabla_sku.loc[tabla_sku['Familia de Almacén I'].isin(distribucion_ordenes_familia_1), 'Familia de Almacén II'].unique().tolist())
-                    else:
-                        distribucion_ordenes_familia_2 = contenedor_familia_2.multiselect("Selecciona la(s) 'Familia de Almacén II':",
-                                                                                          tabla_sku.loc[tabla_sku['Familia de Almacén I'].isin(distribucion_ordenes_familia_1), 'Familia de Almacén II'].unique().tolist())     
-
-                    if distribucion_ordenes_familia_2:
-                        contenedor_familia_3 = st.sidebar.beta_container()
-
-                        if st.sidebar.checkbox('Seleccionar Todas', key='familia_3'):
-                            distribucion_ordenes_familia_3 = contenedor_familia_3.multiselect("Selecciona la(s) 'Familia de Almacén III':",
-                                                                                            tabla_sku.loc[tabla_sku['Familia de Almacén II'].isin(distribucion_ordenes_familia_2), 'Familia de Almacén III'].unique().tolist(),
-                                                                                            tabla_sku.loc[tabla_sku['Familia de Almacén II'].isin(distribucion_ordenes_familia_2), 'Familia de Almacén III'].unique().tolist())
-                        else:
-                            distribucion_ordenes_familia_3 = contenedor_familia_3.multiselect("Selecciona la(s) 'Familia de Almacén III':",
-                                                                                            tabla_sku.loc[tabla_sku['Familia de Almacén II'].isin(distribucion_ordenes_familia_2), 'Familia de Almacén III'].unique().tolist())                        
-                        
-                        if distribucion_ordenes_familia_3:
-                            mostrar_distribucion_ordenes(calcular_distribucion_ordenes(tabla_embarques[['ID del Producto', 'Cajas Embarcadas']],
-                                                                                       tabla_sku.loc[tabla_sku['Familia de Almacén I'].isin(distribucion_ordenes_familia_1) & \
-                                                                                                     tabla_sku['Familia de Almacén II'].isin(distribucion_ordenes_familia_2) & \
-                                                                                                     tabla_sku['Familia de Almacén III'].isin(distribucion_ordenes_familia_3),
-                                                                                                     ['ID del Producto', 'Cajas x Tarima']]),
-                                                         tabla_recibos['Fecha de Recibo'])
-                            
-            elif analisis_seleccionado[0] == 8:
-                contenedor_familia_1 = st.sidebar.beta_container()
+                comparacion_abc_inventario(tabla_sku, tabla_inventario, tabla_embarques)
                 
-                if st.sidebar.checkbox('Seleccionar Todas', key='familia_1'):
-                    distribucion_ordenes_familia_1 = contenedor_familia_1.multiselect("Selecciona la(s) 'Familia de Almacén I':",
-                                                                                      tabla_sku['Familia de Almacén I'].unique().tolist(),
-                                                                                      tabla_sku['Familia de Almacén I'].unique().tolist())
-                else:
-                    distribucion_ordenes_familia_1 = contenedor_familia_1.multiselect("Selecciona la(s) 'Familia de Almacén I':",
-                                                                                      tabla_sku['Familia de Almacén I'].unique().tolist())
+            elif analisis_seleccionado[0] == 8:
+                distribucion_volumen_mensual(tabla_sku, tabla_embarques)
 
-                if distribucion_ordenes_familia_1:
-                    contenedor_familia_2 = st.sidebar.beta_container()
-
-                    if st.sidebar.checkbox('Seleccionar Todas', key='familia_2'):
-                        distribucion_ordenes_familia_2 = contenedor_familia_2.multiselect("Selecciona la(s) 'Familia de Almacén II':",
-                                                                                          tabla_sku.loc[tabla_sku['Familia de Almacén I'].isin(distribucion_ordenes_familia_1), 'Familia de Almacén II'].unique().tolist(),
-                                                                                          tabla_sku.loc[tabla_sku['Familia de Almacén I'].isin(distribucion_ordenes_familia_1), 'Familia de Almacén II'].unique().tolist())
-                    else:
-                        distribucion_ordenes_familia_2 = contenedor_familia_2.multiselect("Selecciona la(s) 'Familia de Almacén II':",
-                                                                                          tabla_sku.loc[tabla_sku['Familia de Almacén I'].isin(distribucion_ordenes_familia_1), 'Familia de Almacén II'].unique().tolist())     
-
-                    if distribucion_ordenes_familia_2:
-                        contenedor_familia_3 = st.sidebar.beta_container()
-
-                        if st.sidebar.checkbox('Seleccionar Todas', key='familia_3'):
-                            distribucion_ordenes_familia_3 = contenedor_familia_3.multiselect("Selecciona la(s) 'Familia de Almacén III':",
-                                                                                            tabla_sku.loc[tabla_sku['Familia de Almacén II'].isin(distribucion_ordenes_familia_2), 'Familia de Almacén III'].unique().tolist(),
-                                                                                            tabla_sku.loc[tabla_sku['Familia de Almacén II'].isin(distribucion_ordenes_familia_2), 'Familia de Almacén III'].unique().tolist())
-                        else:
-                            distribucion_ordenes_familia_3 = contenedor_familia_3.multiselect("Selecciona la(s) 'Familia de Almacén III':",
-                                                                                            tabla_sku.loc[tabla_sku['Familia de Almacén II'].isin(distribucion_ordenes_familia_2), 'Familia de Almacén III'].unique().tolist())                        
-                        
-
-                        if distribucion_ordenes_familia_3:
-                            mostrar_distribucion_comparacion(calcular_distribucion_comparacion(tabla_embarques[['Pedido', 'ID del Producto', 'Cajas Embarcadas']],
-                                                                                               tabla_sku.loc[tabla_sku['Familia de Almacén I'].isin(distribucion_ordenes_familia_1) & \
-                                                                                                             tabla_sku['Familia de Almacén II'].isin(distribucion_ordenes_familia_2) & \
-                                                                                                             tabla_sku['Familia de Almacén III'].isin(distribucion_ordenes_familia_3),
-                                                                                                             ['ID del Producto', 'Cajas x Tarima']]),
-                                                             tabla_recibos['Fecha de Recibo'])
+            elif analisis_seleccionado[0] == 9:
+                distribucion_incremental_ordenes(tabla_sku, tabla_embarques)
+                            
+            elif analisis_seleccionado[0] == 10:
+                distribucion_comparacion(tabla_sku, tabla_embarques)
                             
     else:
         st.success('Para hacer uso correcto de la herramienta, descarga la' + 
