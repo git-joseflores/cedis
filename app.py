@@ -351,14 +351,10 @@ def clasificacion_abc_ponderada(datos_sku, datos_inventario, datos_recibos, dato
                                                                abc_peso_volumen,
                                                                abc_peso_frecuencia,
                                                                abc_peso_variabilidad)[1],
-                                    datos_sku,
-                                    datos_inventario,
-                                    datos_recibos,
-                                    datos_embarques,
-                                    datos_devoluciones)
+                                    datos_sku)
 
-        st.markdown(boton_de_descarga('.\data\cedis_abc.xlsx',
-                                    'cedis_abc.xlsx',
+        st.markdown(boton_de_descarga('./data/cedis_clasificacion_abc_ponderada.xlsx',
+                                    'cedis_clasificacion_abc_ponderada.xlsx',
                                     'Descargar la Clasificación ABC Ponderada'),
                     unsafe_allow_html=True)
     else:
@@ -450,6 +446,7 @@ def distribucion_volumen_mensual(datos_sku, datos_embarques):
     with st.sidebar.beta_expander('Configuración de Análisis'):
         volumen_mensual_fechas_contenedor = st.beta_container()
         volumen_mensual_secciones_contenedor = st.beta_container()
+        volumen_mensual_cuartiles_contenedor = st.beta_container()
 
 
     lista_fechas_errores = checar_integridad_fechas(fecha_embarque=datos_embarques['Fecha de Embarque'])
@@ -469,51 +466,77 @@ def distribucion_volumen_mensual(datos_sku, datos_embarques):
                                                                                 min_value=fecha_min,
                                                                                 max_value=fecha_max,
                                                                                 key='volumen_mensual_fechas')
-    
 
-        volumen_mensual_secciones = volumen_mensual_secciones_contenedor.number_input("Selecciona el Número de Secciones del Volumen Promedio Mensual:",
-                                                                                        min_value=1,
-                                                                                        max_value=10,
-                                                                                        value=1,
-                                                                                        step=1)
+        try:
+            volumen_mensual_valores_cuartiles = calcular_distribucion_volumen(datos_sku[['ID del Producto', 'Volumen x Unidad']],
+                                                                              datos_embarques.loc[(datos_embarques['Fecha de Embarque'].dt.date >= volumen_mensual_fechas[0]) & \
+                                                                                                  (datos_embarques['Fecha de Embarque'].dt.date <= volumen_mensual_fechas[1]),
+                                                                                                 ['ID del Producto', 'Unidades Embarcadas', 'Fecha de Embarque']])\
+                                                                                                     ['Volumen Promedio Mensual'].quantile([0, .25, .5, .75, 1]).tolist()
 
-        volumen_mensual_cortes = []
-        for i in range(volumen_mensual_secciones +  1):
-            corte = volumen_mensual_secciones_contenedor.number_input(f'Corte de Volumen Promedio Mensual {i + 1}:',
-                                                                        min_value=0,
-                                                                        # max_value=23,
-                                                                        value=0,
-                                                                        step=1,
-                                                                        key=f'volumen_mensual_corte_{i}')
-            volumen_mensual_cortes.append(corte)
+            volumen_mensual_valores_cuartiles[4] += 1
 
-        
-        if checar_integridad_secciones(volumen_mensual_cortes):
-            try:
+            volumen_mensual_cuartiles = volumen_mensual_cuartiles_contenedor.checkbox('Seleccionar Secciones por Cuartiles')
+
+            if volumen_mensual_cuartiles:
+                volumen_mensual_secciones = volumen_mensual_secciones_contenedor.number_input("Selecciona el Número de Secciones del Volumen Promedio Mensual:",
+                                                                                                min_value=4,
+                                                                                                max_value=4,
+                                                                                                value=4)
+            else:
+                volumen_mensual_secciones = volumen_mensual_secciones_contenedor.number_input("Selecciona el Número de Secciones del Volumen Promedio Mensual:",
+                                                                                                min_value=1,
+                                                                                                max_value=10,
+                                                                                                value=1,
+                                                                                                step=1)
+            volumen_mensual_cortes = []
+            for index in range(volumen_mensual_secciones +  1):
+                if volumen_mensual_cuartiles:
+                    corte = volumen_mensual_secciones_contenedor.number_input(f'Corte de Volumen Promedio Mensual {index + 1}:',
+                                                                                min_value=int(volumen_mensual_valores_cuartiles[0]),
+                                                                                max_value=int(volumen_mensual_valores_cuartiles[4]),
+                                                                                value=int(volumen_mensual_valores_cuartiles[index]),
+                                                                                step=1,
+                                                                                key=f'volumen_mensual_corte_{index}')
+                else:
+                    corte = volumen_mensual_secciones_contenedor.number_input(f'Corte de Volumen Promedio Mensual {index + 1}:',
+                                                                                min_value=int(volumen_mensual_valores_cuartiles[0]),
+                                                                                max_value=int(volumen_mensual_valores_cuartiles[4]),
+                                                                                value=int(volumen_mensual_valores_cuartiles[0]),
+                                                                                step=1,
+                                                                                key=f'volumen_mensual_corte_{index}')
+                    
+                volumen_mensual_cortes.append(corte)
+
+
+            if checar_integridad_secciones(volumen_mensual_cortes):
+
                 mostrar_distribucion_volumen(*calcular_distribucion_volumen(datos_sku[['ID del Producto', 'Volumen x Unidad']],
                                                                             datos_embarques.loc[(datos_embarques['Fecha de Embarque'].dt.date >= volumen_mensual_fechas[0]) & \
                                                                                                 (datos_embarques['Fecha de Embarque'].dt.date <= volumen_mensual_fechas[1]),
-                                                                                            ['ID del Producto', 'Unidades Embarcadas', 'Fecha de Embarque']],
+                                                                                               ['ID del Producto', 'Unidades Embarcadas', 'Fecha de Embarque']],
+                                                                            True,
                                                                             volumen_mensual_cortes),
-                                            volumen_mensual_fechas)
+                                             volumen_mensual_fechas)
+
 
                 descargar_distribucion_volumen(calcular_distribucion_volumen(datos_sku[['ID del Producto', 'Volumen x Unidad']],
                                                                             datos_embarques.loc[(datos_embarques['Fecha de Embarque'].dt.date >= volumen_mensual_fechas[0]) & \
                                                                                                 (datos_embarques['Fecha de Embarque'].dt.date <= volumen_mensual_fechas[1]),
-                                                                                            ['ID del Producto', 'Unidades Embarcadas', 'Fecha de Embarque']],
+                                                                                               ['ID del Producto', 'Unidades Embarcadas', 'Fecha de Embarque']],
+                                                                            True,
                                                                             volumen_mensual_cortes)[0])
 
-
-                st.markdown(boton_de_descarga('.\data\cedis_distribucion_volumen.xlsx',
-                                            'cedis_distribucion_volumen.xlsx',
+                st.markdown(boton_de_descarga('./data/cedis_distribucion_volumen_mensual.xlsx',
+                                            'cedis_distribucion_volumen_mensual.xlsx',
                                             'Descargar Distribución de Volumen Mensual'),
                             unsafe_allow_html=True)
 
-            except IndexError:
-                mostrar_error(6)
+            else:
+                mostrar_error(5)
 
-        else:
-            mostrar_error(5)
+        except IndexError:
+            mostrar_error(6)
 
 
 def distribucion_incremental_ordenes(datos_sku, datos_embarques):
@@ -726,7 +749,7 @@ def main():
                                  4: 'Resúmenes por Día',
                                  5: 'Clasificación ABC Ponderada',
                                  6: 'ABC Sintec vs ABC Cliente',
-                                 7: 'ABC Sintec vs Inventario',
+                                 7: 'ABC de Embarques vs Inventario',
                                  8: 'Distribución de Volumen Mensual',
                                  9: 'Distribución Incremental de Ordenes',
                                  10: 'Distribución Completa/Parcial/Mixta'}
@@ -774,7 +797,7 @@ def main():
         st.success('Para hacer uso correcto de la herramienta, descarga la' + 
                    ' siguiente plantilla base y llena las columnas con los datos correspondientes:')
 
-        st.markdown(boton_de_descarga('.\data\plantilla.xlsx',
+        st.markdown(boton_de_descarga('./data/plantilla.xlsx',
                                       'plantilla.xlsx',
                                       'Descarga aquí la plantilla'),
                     unsafe_allow_html=True)

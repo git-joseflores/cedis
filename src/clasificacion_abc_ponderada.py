@@ -138,9 +138,8 @@ def mostrar_clasificacion_abc(datos_parciales, datos_finales, columna_tiempo):
 
         st.plotly_chart(fig)
 
-
 @st.cache
-def descargar_clasificacion_abc(datos_abc_sintec, datos_sku, datos_inventario, datos_recibos, datos_embarques, datos_devoluciones):
+def descargar_clasificacion_abc(datos_abc_sintec, datos_sku):
     """
     docstring
     """
@@ -148,23 +147,14 @@ def descargar_clasificacion_abc(datos_abc_sintec, datos_sku, datos_inventario, d
     datos_sku_total['Clasificación ABC de Sintec'] = datos_sku_total['Clasificación ABC de Sintec_y'].astype('string').fillna('SR')
     del datos_sku_total['Clasificación ABC de Sintec_y']
     
-    # st.write(datos_inventario['Fecha de Inventario'])
-    # st.write(datos_inventario['Fecha de Inventario'].dtype)
-    # datos = pd.to_datetime(datos_inventario['Fecha de Inventario'])
-    # datos = datos.dt.strftime('%m/%d/%Y')
-    # st.write(datos)
-    # st.write(datos.dtype)
+    # datos_inventario_total = datos_inventario.copy()
+    # datos_inventario_total['Fecha de Inventario'] = pd.to_datetime(datos_inventario_total['Fecha de Inventario'])
+    # datos_inventario_total['Fecha de Inventario'] = datos_inventario_total['Fecha de Inventario'].dt.strftime('%m/%d/%Y')
+    # datos_inventario_total['Horario de Inventario'] = datos_inventario_total['Horario de Inventario'].astype(str).str.split(' ').str[-1].str.strip()    
 
-    # st.write(datos_inventario['Horario de Inventario'])
-    # st.write(datos_inventario['Horario de Inventario'].dtype)
-    # datos = datos_inventario['Horario de Inventario'].astype(str).str.split(' ').str[-1].str.strip()
-    # st.write(datos)
-    # st.write(datos.dtype)
-    
-
-    with pd.ExcelWriter(".\data\cedis_abc.xlsx") as writer:
+    with pd.ExcelWriter("./data/cedis_clasificacion_abc_ponderada.xlsx") as writer:
         datos_sku_total.to_excel(writer, sheet_name="Información SKU", index=False)
-        datos_inventario.to_excel(writer, sheet_name="Foto de Inventarios", index=False)
-        datos_recibos.to_excel(writer, sheet_name="Base de Recibo", index=False)
-        datos_embarques.to_excel(writer, sheet_name="Base de Embarque", index=False)
-        datos_devoluciones.to_excel(writer, sheet_name="Base de Devoluciones", index=False)
+        # datos_inventario.to_excel(writer, sheet_name="Foto de Inventarios", index=False)
+        # datos_recibos.to_excel(writer, sheet_name="Base de Recibo", index=False)
+        # datos_embarques.to_excel(writer, sheet_name="Base de Embarque", index=False)
+        # datos_devoluciones.to_excel(writer, sheet_name="Base de Devoluciones", index=False)

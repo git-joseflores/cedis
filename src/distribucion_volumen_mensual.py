@@ -5,7 +5,7 @@ import plotly.express as px
 
 
 @st.cache
-def calcular_distribucion_volumen(datos_sku, datos_embarques, cortes):
+def calcular_distribucion_volumen(datos_sku, datos_embarques, con_cortes=False, cortes=[]):
     """
     docstring
     """
@@ -29,6 +29,9 @@ def calcular_distribucion_volumen(datos_sku, datos_embarques, cortes):
     datos_distribucion['Volumen Promedio Mensual'].fillna(0, inplace=True)
     datos_distribucion.reset_index(inplace=True)
     datos_distribucion = datos_distribucion[['ID del Producto', 'Volumen Promedio Mensual']]
+    
+    if not con_cortes:
+        return datos_distribucion
 
     etiquetas = [f'({cortes[i]}, {cortes[i + 1]}]' for i in range(len(cortes) - 1)]
     etiquetas[0] = etiquetas[0].replace("(", "[")
@@ -37,15 +40,14 @@ def calcular_distribucion_volumen(datos_sku, datos_embarques, cortes):
                                                                         cortes,
                                                                         labels=etiquetas,
                                                                         include_lowest=True)
-    
-    advertencia = (not datos_distribucion[datos_distribucion.isnull().any(axis=1)].empty)
 
     datos_grafico = datos_distribucion.groupby('Sección de Volumen Promedio Mensual', as_index=False)['Volumen Promedio Mensual'].agg({'Volumen Acumulado':'sum'})
     datos_grafico['Volumen Porcentaje'] = datos_grafico['Volumen Acumulado'] / datos_grafico['Volumen Acumulado'].sum()
 
     del datos_grafico['Volumen Acumulado']
 
-    return datos_distribucion, datos_grafico, advertencia
+    return datos_distribucion, datos_grafico, (not datos_distribucion[datos_distribucion.isnull().any(axis=1)].empty)
+
 
 
 def mostrar_distribucion_volumen(datos_distribucion, datos_grafico, advertencia, rango_fechas):
@@ -101,5 +103,5 @@ def descargar_distribucion_volumen(datos_distribucion):
     """
     docstring
     """
-    with pd.ExcelWriter(".\data\cedis_distribucion_volumen.xlsx") as writer:
+    with pd.ExcelWriter("./data/cedis_distribucion_volumen_mensual.xlsx") as writer:
         datos_distribucion.to_excel(writer, sheet_name="Distribución Volumen Mensual", index=False)
