@@ -1,6 +1,7 @@
 import base64
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_datetime64_any_dtype as is_datetime
 import re
 import streamlit as st
 import uuid
@@ -107,7 +108,7 @@ def obtener_fecha_minmax(fecha_inventario=[], fecha_recibo=[], fecha_embarque=[]
     """
     fechas_obtenidas = []
     for fecha_en_turno in (fecha_inventario, fecha_recibo, fecha_embarque, fecha_devolucion):
-        if isinstance(fecha_en_turno, pd.Series):
+        if isinstance(fecha_en_turno, pd.Series) and is_datetime(fecha_en_turno):
             if obten_min:
                 fechas_obtenidas.append(fecha_en_turno.min())
             else:
@@ -117,6 +118,12 @@ def obtener_fecha_minmax(fecha_inventario=[], fecha_recibo=[], fecha_embarque=[]
         return min(fechas_obtenidas)
     else:
         return max(fechas_obtenidas)
+
+
+def variable_a_binario(variable):
+    if variable > 0:
+        return 1
+    return 0
 
 
 def boton_de_descarga(url_descarga, nombre_de_descarga, texto_boton):
