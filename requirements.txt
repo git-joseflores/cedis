@@ -1,8 +1,8 @@
 seaborn==0.11.0
 numpy==1.19.3
-streamlit==0.78.0
+streamlit==0.79.0
 matplotlib==3.3.3
 plotly==4.14.2
 pandas==1.1.5
 openpyxl==3.0.5
-mlxtend
+mlxtend==0.18.0
