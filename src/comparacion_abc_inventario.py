@@ -11,7 +11,7 @@ def mostrar_comparacion_inventario(datos_sku, datos_inventario, datos_embarques,
     if ultima_foto:
         datos_inventario = datos_inventario.sort_values('Fecha de Inventario').groupby('ID del Producto').tail(1)
 
-    st.write(datos_inventario)
+    # st.write(datos_inventario)
     sumatorias_inventario = datos_inventario.groupby('ID del Producto', as_index=False)\
                                             [cantidad + ' de Inventario']\
                                             .agg({'Suma de Inventarios por SKU': operacion})
@@ -20,8 +20,8 @@ def mostrar_comparacion_inventario(datos_sku, datos_inventario, datos_embarques,
                                           [cantidad + ' Embarcadas']\
                                           .agg({'Suma de Embarques por SKU': operacion}) 
 
-    st.write(sumatorias_inventario)
-    st.write(sumatorias_embarque)
+    # st.write(sumatorias_inventario)
+    # st.write(sumatorias_embarque)
     sumatorias = pd.merge(datos_sku,
                           sumatorias_inventario,
                           on='ID del Producto',
@@ -29,7 +29,7 @@ def mostrar_comparacion_inventario(datos_sku, datos_inventario, datos_embarques,
                                              on='ID del Producto',
                                              how='outer')
 
-    st.write(sumatorias)
+    # st.write(sumatorias)
     if checar_valores_vacios_columna(sumatorias['Clasificación ABC de Sintec']):
         mostrar_error(8)
     else:
@@ -46,7 +46,7 @@ def mostrar_comparacion_inventario(datos_sku, datos_inventario, datos_embarques,
                         datos_comparativo['Suma de Embarques por SKU'] / datos_comparativo['Suma de Embarques por SKU'].sum()
 
 
-        st.write(datos_comparativo)
+        # st.write(datos_comparativo)
         fig = px.bar(datos_comparativo,
                      x='Clasificación ABC de Sintec',
                      y=['Embarques', 'Inventarios'],

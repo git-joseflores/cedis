@@ -128,13 +128,13 @@ def mostrar_clasificacion_abc(datos_parciales, datos_finales, columna_tiempo):
         #                           sizex=0.2, sizey=0.2,
         #                           xanchor='right', yanchor='bottom'))
 
-        fig.add_annotation(text=f'Fuente: El gráfico se construye con información de Embarques<br>' +
-                                f'del periodo que comprende del {tiempo_min.day} de {meses[tiempo_min.month]} de {tiempo_min.year}' +
-                                f' al {tiempo_max.day} de {meses[tiempo_max.month]} de {tiempo_max.year}.',
-                        xref='paper', yref='paper',
-                        x=0.5, y=-0.22,
-                        showarrow=False,
-                        font={'size': 11})
+        # fig.add_annotation(text=f'Fuente: El gráfico se construye con información de Embarques<br>' +
+        #                         f'del periodo que comprende del {tiempo_min.day} de {meses[tiempo_min.month]} de {tiempo_min.year}' +
+        #                         f' al {tiempo_max.day} de {meses[tiempo_max.month]} de {tiempo_max.year}.',
+        #                 xref='paper', yref='paper',
+        #                 x=0.5, y=-0.22,
+        #                 showarrow=False,
+        #                 font={'size': 11})
 
         st.plotly_chart(fig)
 

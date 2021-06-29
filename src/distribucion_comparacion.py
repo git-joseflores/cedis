@@ -87,5 +87,3 @@ def mostrar_distribucion_comparacion(datos, rango_fechas):
                     font={'size': 11})
 
     st.plotly_chart(fig)
-
-    st.balloons()
