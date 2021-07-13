@@ -32,7 +32,12 @@ from src.distribucion_comparacion import calcular_distribucion_comparacion, most
 from src.market_basket_analisis import calcular_market_basket_analisis
 # Análisis 12: Densidad de Pickeo
 from src.densidad_pickeo import calcular_densidad_pickeo, mostrar_densidad_pickeo
-
+# Análisis 13: Espacio de Almacenamiento de Picking
+from src.almacenamiento_picking import calcular_almancenamiento_picking, mostrar_almancenamiento_picking
+# Análisis 14: Espacio de Pedidos de Picking
+from src.pedidos_picking import calcular_pedidos_picking, mostrar_pedidos_picking
+# Análisis 15: Handling Mix Profile
+from src.handling_mix_profile import calcular_handling_mix_profile
 
 def estacionalidad(datos_inventario, datos_recibos, datos_embarques, datos_devoluciones):
     """
@@ -1419,12 +1424,11 @@ def market_basket_analisis(datos_embarques):
 
 
 def densidad_pickeo(datos_sku, datos_embarques):
-
     st.title('Densidad de Pickeo')
 
     # mostrar_densidad_pickeo(*
     calcular_densidad_pickeo(datos_sku[['ID del Producto', 'Volumen x Unidad', 'Zona de Completitud']],
-                                                      datos_embarques[['ID del Producto', 'Unidades Embarcadas', 'Fecha de Embarque']])
+                             datos_embarques[['ID del Producto', 'Unidades Embarcadas', 'Fecha de Embarque']])
                                                     #   ,
                                                                 # True,
                                                                 # volumen_mensual_cortes
@@ -1437,6 +1441,46 @@ def densidad_pickeo(datos_sku, datos_embarques):
                                     'cedis_densidad_de_pickeo.xlsx',
                                     'Descarga aquí el resultado del análisis'),
                 unsafe_allow_html=True)
+
+
+def almacenamiento_picking(datos_sku, datos_embarques):
+    st.title('Espacio de Almacenamiento de Picking')
+
+    ocultar_indice()
+    calcular_almancenamiento_picking(datos_sku[['ID del Producto', 'Cajas x Tarima']],
+                                     datos_embarques[['ID del Producto', 'Fecha de Embarque', 'Cajas Embarcadas']])
+
+    st.markdown(boton_de_descarga('./data/cedis_almacenamiento_picking.xlsx',
+                                    'cedis_almacenamiento_picking.xlsx',
+                                    'Descarga aquí el resultado del análisis'),
+                unsafe_allow_html=True)
+
+
+def pedidos_picking(datos_sku, datos_embarques):
+    st.title('Espacio de Pedidos de Picking')
+    
+    ocultar_indice()
+    calcular_pedidos_picking(datos_sku[['ID del Producto', 'Cajas x Tarima']],
+                             datos_embarques[['ID del Producto', 'Pedido', 'Fecha de Embarque', 'Cajas Embarcadas']])
+
+    st.markdown(boton_de_descarga('./data/cedis_pedidos_picking.xlsx',
+                                    'cedis_pedidos_picking.xlsx',
+                                    'Descarga aquí el resultado del análisis'),
+                unsafe_allow_html=True)
+
+
+def handling_mix_profile(datos_sku, datos_embarques):
+    st.title('Handling Mix Profile')
+    
+    # ocultar_indice()
+    calcular_handling_mix_profile(datos_sku[['ID del Producto', 'Unidades x Caja']],
+                                  datos_embarques[['ID del Producto', 'Pedido', 'Unidades Embarcadas']])
+
+    st.markdown(boton_de_descarga('./data/cedis_handling_mix_profile.xlsx',
+                                    'cedis_handling_mix_profile.xlsx',
+                                    'Descarga aquí el resultado del análisis'),
+                unsafe_allow_html=True)
+
 
 
 def main():
@@ -1469,7 +1513,10 @@ def main():
                                  9: 'Distribución Incremental de Ordenes',
                                  10: 'Distribución Completa/Parcial/Mixta',
                                 #  11: 'Market Basket Análisis',
-                                 12: 'Densidad de Pickeo'}
+                                 12: 'Densidad de Pickeo',
+                                 13: 'Espacio de Almacenamiento de Picking',
+                                 14: 'Espacio de Pedidos de Picking',
+                                 15: 'Handling Mix Profile'}
                                  
             analisis_seleccionado = st.sidebar.selectbox('Selecciona el Análisis a Ejecutar:',
                                                           options=list(opciones_analisis.items()),
@@ -1515,6 +1562,16 @@ def main():
 
             elif analisis_seleccionado[0] == 12:
                 densidad_pickeo(tabla_sku, tabla_embarques)
+
+            elif analisis_seleccionado[0] == 13:
+                almacenamiento_picking(tabla_sku, tabla_embarques)
+
+            elif analisis_seleccionado[0] == 14:
+                pedidos_picking(tabla_sku, tabla_embarques)    
+
+            elif analisis_seleccionado[0] == 15:
+                handling_mix_profile(tabla_sku, tabla_embarques)
+
     else:
         st.success('Para hacer uso correcto de la herramienta, descarga la' + 
                    ' siguiente plantilla base y llena las columnas con los datos correspondientes:')
