@@ -28,8 +28,6 @@ from src.distribucion_volumen_mensual import calcular_distribucion_volumen, most
 from src.distribucion_incremental_ordenes import calcular_distribucion_ordenes, mostrar_distribucion_ordenes
 # Análisis 10: Distribución Completa/Parcial/Mixta
 from src.distribucion_comparacion import calcular_distribucion_comparacion, mostrar_distribucion_comparacion
-# Análisis 11: Market Basket Análisis
-from src.market_basket_analisis import calcular_market_basket_analisis
 # Análisis 12: Densidad de Pickeo
 from src.densidad_pickeo import calcular_densidad_pickeo, mostrar_densidad_pickeo
 # Análisis 13: Espacio de Almacenamiento de Picking
@@ -1364,65 +1362,6 @@ def distribucion_comparacion(datos_sku, datos_embarques, datos_inventario, datos
                         mostrar_error(6)
 
 
-def market_basket_analisis(datos_embarques):
-    """
-    docstring
-    """
-    # mka_titulo_contenedor = st.beta_container()
-
-    # with st.sidebar.beta_expander('Configuración de Análisis'):
-
-    #     mka_cantidad = st.radio('Selecciona las Cantidades:',
-    #                             ['Unidades', 'Cajas', 'Tarimas'],
-    #                             index=0)
-
-    #     mka_apoyo = st.number_input('Selecciona el Apoyo Mínimo:', 
-    #                                 min_value=0.0,
-    #                                 max_value=1.0,
-    #                                 value=0.5)
-
-    #     mka_metrica = st.radio('Selecciona la Métrica:',
-    #                             ['Lift'],
-    #                             # ['Support', 'Confidence', 'Lift', 'Leverage', 'Conviction'],
-    #                             # ['Apoyo', 'Confianza', 'Asensor', 'Apalancamiento', 'Convicción'],
-    #                             # index=2
-    #                             )
-
-
-
-    #     if mka_metrica == 'Apalancamiento':
-    #         umbral_min = -1.0
-    #         umbral_max = 1.0
-    #     elif (mka_metrica == 'Asensor') or (mka_metrica == 'Convicción'):
-    #         umbral_min = 0.0
-    #         umbral_max = float("inf")
-    #     else:
-    #         umbral_min = 0.0
-    #         umbral_max = 1.0
-
-    #     mka_umbral = st.number_input('Selecciona el Umbral de la Métrica:', 
-    #                                  min_value=umbral_min,
-    #                                  max_value=1.0,
-    #                                  value=0.8)
-
-
-    # mka_titulo_contenedor.title('Market Basket Análisis')
-    # mostrar_advertencia(9, 'Unidades de Inventario', 'Foto de Inventarios')
-    # mostrar_advertencia(9, 'Unidades Recibidas', 'Base de Recibo')
-
-
-    # calcular_market_basket_analisis(datos_embarques[['Pedido', 'ID del Producto', mka_cantidad + ' Embarcadas']],
-    #                                 mka_apoyo,
-    #                                 mka_metrica,
-    #                                 mka_umbral)
-
-    # st.markdown(boton_de_descarga('./data/market_basket_analisis.xlsx',
-    #                                 'market_basket_analisis.xlsx',
-    #                                 'Descarga aquí el resultado del análisis'),
-    #             unsafe_allow_html=True)
-    pass
-
-
 def densidad_pickeo(datos_sku, datos_embarques):
     st.title('Densidad de Pickeo')
 
@@ -1480,7 +1419,6 @@ def handling_mix_profile(datos_sku, datos_embarques):
                                     'cedis_handling_mix_profile.xlsx',
                                     'Descarga aquí el resultado del análisis'),
                 unsafe_allow_html=True)
-
 
 
 def main():
@@ -1556,9 +1494,6 @@ def main():
                             
             elif analisis_seleccionado[0] == 10:
                 distribucion_comparacion(tabla_sku, tabla_embarques, tabla_inventario, tabla_recibos)
-
-            # elif analisis_seleccionado[0] == 11:
-            #     market_basket_analisis(tabla_embarques)
 
             elif analisis_seleccionado[0] == 12:
                 densidad_pickeo(tabla_sku, tabla_embarques)
